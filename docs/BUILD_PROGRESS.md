@@ -45,6 +45,18 @@ No domain logic was changed: the planning engine, schemas, reducer and persisten
 - **Hosting:** `BASE_PATH` configures the Vite base for repository subpaths; the default stays relative.
 - **Visual system:** warm light surfaces, navy, restrained gold and coral, system fonts. The earlier dark colour scheme was dropped deliberately.
 
+### Stage 5: Budget editor
+
+The Budget page is now a working editor built on the stage 3 money functions (`allocateTargets`, `forecastExpenses`, `assessFeasibility`, `mulDivFloor`, `allocate`). New pure modules: `src/domain/planning/budget.ts` (ledger, accounting checks, locks, rebalancing) and `src/domain/planning/scenarios.ts` (what-if previews).
+
+- **Ledger (`buildLedger`):** budget, reserve, left after the reserve, category targets (locked and unlocked), forecast, committed, uncommitted, paid, outstanding, headroom, shortfall and gap, per category and per item, plus conflicts and options. `ledgerIdentities` lists the sums that must agree; `reconciles` is shown on the page.
+- **Accounting model:** an expense contributes its agreed total when present, otherwise its estimate; payments are part of a commitment, need one and must not exceed it; outstanding is committed minus paid; forecast and payments are never added; the reserve is never an expense; headroom = budget − reserve − forecast (negative when the forecast eats into the reserve or beyond).
+- **Editing:** start a budget from the planning configuration (categories and expenses only; tasks and ideas are left to their pages); add and edit expenses with fixed or per-guest estimates; agreed fixed totals or per-guest rates; dated payments with remove; remove an expense (with confirmation, not for required provisions or items with payments); edit category targets; set the reserve percentage. Generated estimates show "Illustrative rate"; edited ones "Your estimate"; agreed items "Agreed"; required and optional items are labelled. Amounts are typed as text with `inputmode="decimal"` and parsed to integer paise on submit; formatted strings are never stored.
+- **Locks:** a manually set target is locked (`plannedOrigin: 'user'`) and the unlocked targets re-share the rest by planning weight, never below required provisions. Unlock is an explicit button. Rebalancing never moves or unlocks a locked target. If locked targets exceed the money left after the reserve, the result is a critical conflict and unlocked targets drop to their floor (never below zero). If every target is locked, nothing is allocated (no division by a zero weight) and the unallocated or excess amount is shown with a request to edit or unlock a target.
+- **What-if:** reduce the budget by 15%, increase guests by 20%, change the reserve, give a chosen priority 20% more. Each preview shows budget, guests, reserve, forecast, headroom and shortfall before and after, changed target recommendations, changed gap-closing suggestions, conflicts introduced and resolved, and written trade-offs. Previews are computed from a copy and never saved. Apply goes through the reducer with the preview's revision; any other edit makes the preview "out of date" and Apply is withheld until it is previewed again. Discard changes nothing. Scenarios only touch the profile and category targets, so tasks, agreed costs, payments, guests and manual expenses survive. An impossible cap is applied as chosen and the shortfall stays on the page.
+- **Display:** a readable table of categories (target, status, forecast, agreed, paid, outstanding, target − forecast, totals, reserve, unallocated, budget) and of expenses, beside decorative bars (budget composition, and target against forecast per category) whose colours passed the dataviz palette validator against the card surface.
+- **Navigation:** Budget no longer shows "Soon".
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -76,7 +88,36 @@ No domain logic was changed: the planning engine, schemas, reducer and persisten
 - **Stage 4:** the old `/events` address redirects to the Overview.
 - **Stage 4:** Budget, Timeline, Vendors and Ideas pages do not call the planning engine; they show only simple values already in state. Showing generated plans is the next stage.
 
+- **Stage 5:** "Locked" reuses `plannedOrigin: 'user'`, which the plan generator and `reconcileOperations` already treat as fixed, so no schema change was needed and the saved-data version stays 1.
+- **Stage 5:** rebalancing uses the same planning weights (with priority boosts) as `generatePlan`, so a rebalance and a later plan regeneration agree. A category without a configured weight is kept as it is and cannot be unlocked.
+- **Stage 5:** "payments need a commitment and must fit inside it" is enforced by the editor, not the Zod schema. A per-guest agreement shrinks when the guest count falls, which could otherwise make an unrelated guest edit invalid; instead the ledger reports the overpayment as a critical conflict and the identities still hold (committed + overpaid = paid + outstanding).
+- **Stage 5:** "Give a priority more" raises the unlocked categories that serve the priority by 20% of their targets, takes exactly that from the other unlocked targets in proportion to what they hold above required provisions, and locks the raised targets on Apply, because applying is an explicit choice a later rebalance should keep. It does not edit the event's priorities.
+- **Stage 5:** setting the reserve, editing a target and unlocking all re-share unlocked targets in the same edit. Changing the budget or guests on the Overview does not; the Budget page then shows "Rebalance unlocked targets".
+- **Stage 5:** the reserve is never an expense, so the whole forecast is "non-reserve forecast" in the headroom formula.
+- **Stage 5:** budget-page buttons use the normal 44 px size; the stage 4 guest "Remove" button still uses the 36 px small size.
+- **Stage 5:** the JS bundle now includes the planning configuration and passes Vite's 500 kB warning threshold (533 kB, 161 kB gzip). Code-splitting is left for later.
+
 ## Verification results (actually run)
+
+### Stage 5
+
+Windows, Node v24.16.0, npm 11.17.0.
+
+| Check                  | Result                                                                   |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run typecheck`    | exit 0                                                                   |
+| `npm run lint`         | exit 0                                                                   |
+| `npm run format:check` | exit 0                                                                   |
+| `npm run test:run`     | 24 files, 382 tests passed (44 new: ledger, locks, scenarios, page)      |
+| `npm run build`        | OK; JS 533.13 kB (160.95 kB gzip), CSS 20.09 kB; Vite chunk-size warning |
+
+- **Completion check** (`scenarios.test.ts`): increasing guests by 20% raises every per-guest estimate and per-guest agreement by rate × 40, leaves fixed estimates and the agreed fixed venue (with its payment) unchanged, every ledger identity holds, and repeated increases leave a visible shortfall and negative headroom.
+- **Mutation checks:** adding payments into headroom failed 8 tests; treating every preview as current failed 2. Both were reverted.
+- **Real browser** (Claude desktop browser pane, Chromium, dev server; the pane was hidden, so screenshots were used only at the top of the page and layout was checked through the DOM): created the demo wedding and a starting budget; locked Venue at ₹1,50,000 with the keyboard (Enter submits; status announced; other targets re-shared; targets still total ₹4,50,000; focus returned to the Edit button); opened the expense editor and a scenario preview; applied "Increase guests by 20%" (saved guest count 240). axe-core 4.10 (WCAG 2.0 to 2.2 A and AA plus best practices) reported no violations on the default page, with the editor and preview open at desktop width, and at 320 px. No horizontal page scroll at 390 px or 320 px. No console errors on a clean load.
+- **Defects found in the browser and fixed:** a visually hidden table header escaped its scroll container and widened the phone layout to 728 px (the wrapper is now a containing block); a duplicate region name between the preview's target table and the "Category targets" card (axe `landmark-unique`); budget buttons below the project's 44 px target size; a missing legend entry for "forecast above target" in the bars.
+- **Not verified this stage:** Firefox, Safari, a physical phone, a screen reader, print, 400% zoom and high-contrast mode; the stage 4 subpath builds were not re-run.
+
+### Stage 4
 
 Windows, Node v24.16.0, npm 11.17.0, at the end of stage 4.
 
@@ -116,10 +157,11 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 ## Remaining work
 
-1. **Show the plan:** generated plan with reasons, forecast against budget, shortfall, conflicts and options on Overview and Budget, with an apply button, using the existing engine.
-2. **Constraint-change flow in the UI:** edit guests, budget, date, reserve or needs; show the `previewChanges` result; accept or reject. Add an editable reserve field.
+1. **Show the plan:** generated tasks, ideas and recommendations with reasons on Overview, with an apply button, using the existing engine. (The budget part is done in stage 5.)
+2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
 3. **Timeline, Vendors, Ideas pages:** manage tasks and status, vendors with quotes, commitments, deposits and payments, and ideas.
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
 5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat and proposals going through `previewChanges`.
 6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
 7. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
+8. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.

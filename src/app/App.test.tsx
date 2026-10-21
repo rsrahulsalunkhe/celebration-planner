@@ -82,7 +82,10 @@ describe('the shell', () => {
   it('marks unfinished sections in the navigation instead of hiding that they are unfinished', () => {
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: /^Budget\s*Soon/ })).toBeInTheDocument();
+    expect(
+      within(nav).getByRole('link', { name: /^Timeline\s*Soon/ }),
+    ).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: 'Budget' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Overview' })).toBeInTheDocument();
   });
 
@@ -447,13 +450,6 @@ describe('sections that are not built yet', () => {
   it('shows only real figures from the event and says plainly what is missing', async () => {
     renderApp();
     await createDemo('Wedding');
-
-    await follow(/^Budget/);
-    expect(screen.getByText('₹5,00,000')).toBeInTheDocument(); // budget
-    expect(screen.getByText('₹50,000')).toBeInTheDocument(); // 10% reserve
-    expect(screen.getByText('₹4,50,000')).toBeInTheDocument(); // left to plan
-    const notice = screen.getByRole('region', { name: /Category targets/ });
-    expect(within(notice).getByText('Not built yet')).toBeInTheDocument();
 
     await follow(/^Timeline/);
     expect(screen.getByText('Tasks listed').nextElementSibling).toHaveTextContent('0');

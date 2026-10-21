@@ -1,0 +1,333 @@
+/* Shared by the budget cards: tables, allocation bars, forms and notes. */
+
+.note {
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--gold-400);
+  background: var(--gold-soft);
+  border-radius: var(--radius-sm);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conflict {
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--color-border-strong);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-sm);
+}
+
+.conflict[data-severity='critical'],
+.conflict[data-severity='blocking'] {
+  border-left-color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.conflict[data-severity='warning'] {
+  border-left-color: var(--gold-400);
+  background: var(--gold-soft);
+}
+
+.conflictLabel {
+  font-weight: 700;
+}
+
+/* --- Tables ------------------------------------------------------------- */
+
+.tableWrap {
+  /* Contains absolutely positioned hidden text, so it cannot widen the page. */
+  position: relative;
+  overflow-x: auto;
+  margin-top: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.tableWrap:focus-visible {
+  outline-offset: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+}
+
+.table caption {
+  padding: var(--space-3) var(--space-4) 0;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  background: var(--color-surface-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.table tbody th {
+  font-weight: 600;
+  min-width: 10rem;
+}
+
+.table tfoot th,
+.table tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+  border-top: 2px solid var(--color-border-strong);
+}
+
+.num {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.negative {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.cellStack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.detail {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* --- Allocation bars ---------------------------------------------------- */
+
+.figure {
+  margin: var(--space-4) 0 0;
+}
+
+.figure figcaption {
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.composition {
+  display: flex;
+  gap: 2px;
+  height: 1.25rem;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--color-surface);
+}
+
+.segment {
+  min-width: 2px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 3px;
+  border: 1px solid rgb(20 33 61 / 25%);
+}
+
+/* Validated with the dataviz palette checks against the card surface. */
+.reserve {
+  background: #b8861b;
+}
+
+.targets {
+  background: #2f4f9e;
+}
+
+.unallocated {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-surface-muted) 0 4px,
+    var(--color-border) 4px 6px
+  );
+}
+
+.over {
+  background: #c4452d;
+}
+
+.forecastFill {
+  background: #0f8a74;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.barName {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.barPair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bar {
+  height: 0.5rem;
+  border-radius: 0 4px 4px 0;
+  min-width: 2px;
+}
+
+.bar[data-empty='true'] {
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  .barRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- Forms -------------------------------------------------------------- */
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.formWide {
+  grid-column: 1 / -1;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.inline > :first-child {
+  flex: 1 1 12rem;
+  max-width: 20rem;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.section > h3,
+.section > h4 {
+  margin-bottom: var(--space-3);
+  font-size: 1rem;
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.list li + li {
+  margin-top: var(--space-1);
+}
+
+.equation {
+  margin-top: var(--space-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.scenarioGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-4);
+}
+
+.scenario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.scenario h3 {
+  font-size: 1rem;
+}
+
+.scenario > :last-child {
+  margin-top: auto;
+}
+
+.preview {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 2px solid var(--navy-700);
+  border-radius: var(--radius-md);
+}
+
+.preview > h3 {
+  font-size: 1.0625rem;
+}

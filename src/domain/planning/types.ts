@@ -257,6 +257,9 @@ export type ConflictKind =
   | 'locked-targets-exceed-spendable'
   | 'required-floors-exceed-spendable'
   | 'category-over-target'
+  | 'targets-unallocated'
+  | 'payments-without-commitment'
+  | 'paid-exceeds-commitment'
   | 'required-provision-removed'
   | 'event-date-in-past'
   | 'event-in-history';

@@ -82,6 +82,9 @@ Money rules:
 7. If the forecast exceeds the budget or the spendable amount, the result gives a numerical shortfall and gap, explicit conflicts, and options with exact numbers (use reserve, drop optional items, fewer guests, raise the budget).
 8. Affordability is judged by forecast against budget. Redistributing targets cannot make a plan look affordable.
 9. Required accessibility provisions and stated dietary needs are flagged, floored in the allocation, and never offered as savings. Removing one while its need is still stated blocks a proposal.
+10. Accounting (`src/domain/planning/budget.ts`): an expense contributes its agreed total when present, otherwise its estimate. Payments are part of a commitment, need one and must not exceed it. Forecast and payments are never added together. The reserve is never an expense. Headroom = budget − reserve − forecast.
+11. A target the user sets is locked (`plannedOrigin: 'user'`) until they press Unlock. Rebalancing moves only unlocked targets, by planning weight, never below required provisions and never below zero. Locked targets that no longer fit are a conflict, never silently unlocked; when every target is locked the excess or unallocated amount is shown instead of being shared.
+12. What-if scenarios (`src/domain/planning/scenarios.ts`: cut the budget, more guests, change the reserve, favour a priority) are previews computed from a copy. Apply uses the preview's revision, so a preview made before another edit is rejected as stale. Scenarios change only the profile and category targets.
 
 Date rules:
 
