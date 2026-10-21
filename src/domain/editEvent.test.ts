@@ -100,6 +100,34 @@ describe('applyOperations', () => {
   });
 });
 
+describe('removing a task', () => {
+  it('stops other tasks depending on it instead of leaving a dangling reference', () => {
+    const base = applyOperations(makeEvent(), [
+      { op: 'tasks/upsert', item: task('a') },
+      { op: 'tasks/upsert', item: task('b', { dependsOn: ['a'] }) },
+      { op: 'tasks/upsert', item: task('c', { dependsOn: ['a', 'b'] }) },
+    ]);
+    const next = base && applyOperations(base, [{ op: 'tasks/remove', itemId: 'a' }]);
+    expect(next).not.toBeNull();
+    const b = next?.tasks.find((t) => t.id === 'b');
+    expect(b && 'dependsOn' in b).toBe(false);
+    expect(next?.tasks.find((t) => t.id === 'c')?.dependsOn).toEqual(['b']);
+  });
+
+  it('refuses an edit that would create a dependency cycle', () => {
+    const base = applyOperations(makeEvent(), [
+      { op: 'tasks/upsert', item: task('a') },
+      { op: 'tasks/upsert', item: task('b', { dependsOn: ['a'] }) },
+    ]);
+    const cyclic =
+      base &&
+      applyOperations(base, [
+        { op: 'tasks/upsert', item: task('a', { dependsOn: ['b'] }) },
+      ]);
+    expect(cyclic).toBeNull();
+  });
+});
+
 describe('generatedId', () => {
   it('is deterministic, so regeneration reuses the same id', () => {
     expect(generatedId('event-1', 'task.book-venue')).toBe(

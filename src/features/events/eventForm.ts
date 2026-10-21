@@ -1,3 +1,4 @@
+import { newEventDateProblem, parseIsoDate } from '@/domain/dates.ts';
 import { formatMoneyInput, parseMoney } from '@/domain/money.ts';
 import { LIMITS } from '@/domain/primitives.ts';
 import { eventProfileSchema, preferencesSchema } from '@/domain/schemas.ts';
@@ -8,6 +9,7 @@ import type {
   EventProfile,
   EventRecord,
   EventType,
+  IsoDate,
   Preferences,
   Priority,
   Setting,
@@ -126,8 +128,17 @@ function splitTags(value: string): string[] {
  * Turns raw form text into a validated profile and preferences. Blank or
  * malformed numbers become field errors; they are never turned into zero.
  */
-export function validateEventForm(values: EventFormValues): FormResult {
+export function validateEventForm(
+  values: EventFormValues,
+  options: { newEventToday?: IsoDate } = {},
+): FormResult {
   const errors: FormErrors = {};
+
+  // A new event cannot be in the past. Edits pass no date, so history stays editable.
+  if (options.newEventToday !== undefined && parseIsoDate(values.date)) {
+    const problem = newEventDateProblem(values.date, options.newEventToday);
+    if (problem) errors.date = problem;
+  }
 
   if (values.eventType === '') errors.eventType = 'Choose an event type';
   if (values.setting === '') errors.setting = 'Choose indoor, outdoor or both';

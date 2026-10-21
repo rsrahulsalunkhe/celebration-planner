@@ -42,6 +42,18 @@ function remove(record: EventRecord, key: CollectionName, itemId: string): Event
       ),
     };
   }
+  if (key === 'tasks') {
+    // Other tasks stop depending on the removed one.
+    return {
+      ...next,
+      tasks: next.tasks.map((task) => {
+        if (!task.dependsOn?.includes(itemId)) return task;
+        const dependsOn = task.dependsOn.filter((dep) => dep !== itemId);
+        const { dependsOn: _old, ...rest } = task;
+        return dependsOn.length > 0 ? { ...rest, dependsOn } : rest;
+      }),
+    };
+  }
   return next;
 }
 
@@ -89,18 +101,37 @@ function applyOperation(record: EventRecord, op: ChangeOperation): EventRecord {
   }
 }
 
+export type ApplyResult =
+  { ok: true; record: EventRecord } | { ok: false; issues: string[] };
+
 /**
  * Applies operations as one edit: the revision rises by exactly one and the
- * whole record is re-validated. Returns `null` (nothing applied) if the result
- * would violate any schema rule, limit or reference.
+ * whole record is re-validated. Nothing is applied if the result would
+ * violate any schema rule, limit or reference; the issues say why.
  */
-export function applyOperations(
+export function tryApplyOperations(
   record: EventRecord,
   operations: readonly ChangeOperation[],
-): EventRecord | null {
+): ApplyResult {
   let next = record;
   for (const op of operations) next = applyOperation(next, op);
   next = { ...next, profile: { ...next.profile, revision: record.profile.revision + 1 } };
   const parsed = eventRecordSchema.safeParse(next);
-  return parsed.success ? parsed.data : null;
+  if (parsed.success) return { ok: true, record: parsed.data };
+  return {
+    ok: false,
+    issues: parsed.error.issues.slice(0, 5).map((issue) => {
+      const where = issue.path.map(String).join('.');
+      return where ? `${where}: ${issue.message}` : issue.message;
+    }),
+  };
+}
+
+/** As `tryApplyOperations`, returning `null` when the edit is not valid. */
+export function applyOperations(
+  record: EventRecord,
+  operations: readonly ChangeOperation[],
+): EventRecord | null {
+  const result = tryApplyOperations(record, operations);
+  return result.ok ? result.record : null;
 }

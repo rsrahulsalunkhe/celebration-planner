@@ -147,6 +147,7 @@ export function EventsPage() {
         <EventForm
           key="create"
           heading="New event"
+          newEventToday={calendar.today()}
           submitLabel="Create event"
           initialValues={emptyFormValues}
           onSubmit={createEvent}

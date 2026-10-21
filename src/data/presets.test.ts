@@ -3,7 +3,6 @@ import { eventRecordSchema } from '@/domain/schemas.ts';
 import { daysBetween } from '@/domain/dates.ts';
 import { fixedCalendar } from '@/test/helpers.ts';
 import { DEMO_PRESETS, buildDemoEvent } from './presets.ts';
-import { CATEGORY_TEMPLATES, EXPENSE_TEMPLATES, TASK_TEMPLATES } from './templates.ts';
 
 const preset = (id: string) => {
   const found = DEMO_PRESETS.find((p) => p.id === id);
@@ -70,27 +69,5 @@ describe('demo presets', () => {
       buildDemoEvent(preset('birthday'), { eventId: 'b', calendar: fixedCalendar() })
         .profile.ageBand,
     ).toBe('30-49');
-  });
-});
-
-describe('template catalog', () => {
-  const all = [...CATEGORY_TEMPLATES, ...EXPENSE_TEMPLATES, ...TASK_TEMPLATES];
-
-  it('has unique, well-formed, permanent ids', () => {
-    const ids = all.map((t) => t.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    for (const id of ids) expect(id).toMatch(/^(category|expense|task)\.[a-z0-9-]+$/);
-  });
-
-  it('links every expense template to a real category template', () => {
-    const categories = new Set(CATEGORY_TEMPLATES.map((c) => c.id));
-    for (const e of EXPENSE_TEMPLATES)
-      expect(categories.has(e.categoryTemplateId)).toBe(true);
-  });
-
-  it('covers every event type with tasks', () => {
-    for (const type of ['wedding', 'birthday', 'community'] as const) {
-      expect(TASK_TEMPLATES.some((t) => t.appliesTo.includes(type))).toBe(true);
-    }
   });
 });

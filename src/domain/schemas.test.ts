@@ -259,3 +259,150 @@ describe('session-only types', () => {
     );
   });
 });
+
+describe('planning fields', () => {
+  const base = makeEvent();
+  const withExpense = (patch: object) => ({
+    ...base,
+    budgetCategories: [category('c1', 1000)],
+    expenses: [{ ...expense('e1', 'c1', 100), ...patch }],
+  });
+
+  it('accepts fixed and per-guest costs and commitments, and rejects malformed ones', () => {
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({ estimate: { basis: 'per-guest', perGuestPaise: 40_000 } }),
+      ),
+    ).toBe(true);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({
+          commitment: { basis: 'per-guest', perGuestPaise: 500, depositPaise: 100 },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({ estimate: { basis: 'per-guest', amountPaise: 1 } }),
+      ),
+    ).toBe(false);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({ estimate: { basis: 'weekly', amountPaise: 1 } }),
+      ),
+    ).toBe(false);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({ estimate: { basis: 'fixed', amountPaise: -1 } }),
+      ),
+    ).toBe(false);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({ estimate: { basis: 'fixed', amountPaise: Number.NaN } }),
+      ),
+    ).toBe(false);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({ estimate: { basis: 'per-guest', perGuestPaise: 0.5 } }),
+      ),
+    ).toBe(false);
+  });
+
+  it('a deposit is part of the agreed total and cannot exceed it', () => {
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({
+          commitment: { basis: 'fixed', totalPaise: 1000, depositPaise: 1000 },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      ok(
+        eventRecordSchema,
+        withExpense({
+          commitment: { basis: 'fixed', totalPaise: 1000, depositPaise: 1001 },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('only known needs can be marked as required provisions', () => {
+    expect(ok(eventRecordSchema, withExpense({ requirement: 'wheelchair-access' }))).toBe(
+      true,
+    );
+    expect(ok(eventRecordSchema, withExpense({ requirement: 'dietary' }))).toBe(true);
+    expect(ok(eventRecordSchema, withExpense({ requirement: 'luxury' }))).toBe(false);
+  });
+
+  it('validates the reserve as whole basis points up to 50%', () => {
+    for (const value of [0, 1000, 5000]) {
+      expect(ok(eventProfileSchema, { ...base.profile, reserveBasisPoints: value })).toBe(
+        true,
+      );
+    }
+    for (const value of [-1, 5001, 10.5, Number.NaN]) {
+      expect(ok(eventProfileSchema, { ...base.profile, reserveBasisPoints: value })).toBe(
+        false,
+      );
+    }
+  });
+
+  it('checks task dependencies: unknown, self and cyclic references are rejected', () => {
+    const t = (id: string, dependsOn: string[]) => task(id, { dependsOn });
+    expect(ok(eventRecordSchema, { ...base, tasks: [t('a', []), t('b', ['a'])] })).toBe(
+      true,
+    );
+    expect(ok(eventRecordSchema, { ...base, tasks: [t('a', ['zzz'])] })).toBe(false);
+    expect(ok(eventRecordSchema, { ...base, tasks: [t('a', ['a'])] })).toBe(false);
+    const cyclic = eventRecordSchema.safeParse({
+      ...base,
+      tasks: [t('a', ['c']), t('b', ['a']), t('c', ['b'])],
+    });
+    expect(cyclic.success).toBe(false);
+    expect(!cyclic.success && cyclic.error.issues.map((i) => i.message).join()).toContain(
+      'cycle',
+    );
+  });
+
+  it('validates task and idea extras', () => {
+    const extras = {
+      kind: 'follow-up',
+      importance: 'critical',
+      idealDueDate: '2027-01-01',
+    } as const;
+    expect(ok(eventRecordSchema, { ...base, tasks: [task('a', extras)] })).toBe(true);
+    expect(
+      ok(eventRecordSchema, {
+        ...base,
+        tasks: [task('a', { idealDueDate: '2027-02-30' })],
+      }),
+    ).toBe(false);
+    expect(
+      ok(eventRecordSchema, { ...base, tasks: [{ ...task('a'), importance: 'urgent' }] }),
+    ).toBe(false);
+    const idea = {
+      id: 'i',
+      title: 'Idea',
+      kind: 'theme',
+      status: 'suggested',
+      source: 'built-in',
+    };
+    expect(
+      ok(eventRecordSchema, {
+        ...base,
+        ideas: [{ ...idea, tags: ['party-games', 'cake'] }],
+      }),
+    ).toBe(true);
+    expect(
+      ok(eventRecordSchema, { ...base, ideas: [{ ...idea, tags: ['Not A Tag'] }] }),
+    ).toBe(false);
+  });
+});

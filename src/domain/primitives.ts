@@ -15,7 +15,8 @@ export const LIMITS = {
   guests: 1000,
   ideas: 100,
   paymentsPerExpense: 50,
-  operationsPerChange: 20,
+  /** A regenerated plan is applied as one change, so this must cover a whole plan. */
+  operationsPerChange: 300,
   messages: 200,
   priorities: 5,
   culturalPreferences: 10,
@@ -29,6 +30,13 @@ export const LIMITS = {
 
 /** The only currency. Money is always an integer number of paise. */
 export const CURRENCY = 'INR';
+
+/**
+ * The overall budget includes a contingency reserve held back from spending
+ * targets. 1000 basis points = 10%. Editable per event up to the maximum.
+ */
+export const DEFAULT_RESERVE_BASIS_POINTS = 1000;
+export const MAX_RESERVE_BASIS_POINTS = 5000;
 
 export const EVENT_TYPES = ['wedding', 'birthday', 'community'] as const;
 export const SETTINGS = ['indoor', 'outdoor', 'mixed'] as const;
@@ -87,6 +95,10 @@ export const VENDOR_STATUSES = [
   'declined',
 ] as const;
 export const TASK_STATUSES = ['todo', 'in-progress', 'done'] as const;
+export const TASK_KINDS = ['preparation', 'follow-up'] as const;
+export const IMPORTANCES = ['critical', 'important', 'routine'] as const;
+/** Why an expense must not be cut to save money. */
+export const REQUIREMENTS = [...ACCESSIBILITY_NEEDS, 'dietary'] as const;
 export const RSVP_STATUSES = ['invited', 'accepted', 'declined'] as const;
 export const IDEA_KINDS = ['theme', 'activity', 'decor', 'food', 'favour'] as const;
 export const IDEA_STATUSES = ['suggested', 'saved', 'dismissed'] as const;

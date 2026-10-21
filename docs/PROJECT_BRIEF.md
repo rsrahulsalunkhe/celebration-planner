@@ -33,11 +33,11 @@ Static single-page app. No server; all data stays in the browser.
 Layout:
 
 - `src/app`: shell, providers, routing, state.
-- `src/domain`: types, Zod schemas, money and date utilities, planning rules.
+- `src/domain`: types, Zod schemas, money and date utilities, selectors, and `planning/`, the pure planning engine (no React, no browser, no clock; enforced by a test).
 - `src/features`: `events`, `budget`, `timeline`, `vendors`, `assistant`, `ideas`, plus `data` (saved-data explanation, export and clear).
 - `src/components`: reusable accessible controls.
 - `src/services`: storage, export, AI adapters.
-- `src/data`: small fictional fixtures and rule configuration.
+- `src/data`: demo presets, labels, and `planning/`, the typed rule configuration (one file per event type).
 - `src/styles`, `src/test`, plus `e2e`, `scripts`, `docs`, `.github/workflows` when needed.
 
 Key design rules:
@@ -51,6 +51,38 @@ Key design rules:
 - Chat messages and proposed changes are session-only and never persisted.
 - Data stays in this browser's localStorage under keys prefixed `celebration-planner:`. It is not an account and is not encrypted.
 - Core planning is deterministic and rule-based. It must work without a model.
+- The planning engine takes today's date as an argument and never reads the clock or randomness. Identical input gives identical output.
+
+### Planning engine
+
+Entry points in `src/domain/planning`:
+
+- `generatePlan(event, configuration, today)`: a complete, explained plan. `event` is the profile plus preferences (priorities, dietary, accessibility and cultural text live in preferences), and optionally existing categories so user-fixed targets are kept.
+- `proposeChange({ record, patch, preferences, configuration, today, id })`: a `ProposedChange` carrying the constraint change and every consequence for generated values.
+- `previewChanges(state, proposedChange, today)`: what accepting a proposal would do (before and after, field changes, money, expenses, tasks, conflicts), without changing anything.
+- Explicit building blocks: `allocateTargets`, `forecastExpenses`, `assessFeasibility`, `scheduleTasks`, `buildRecommendations`, `analyzeEvent`.
+
+Money rules:
+
+1. The budget includes a contingency reserve: 10% by default, editable per event (`reserveBasisPoints`, 0 to 50%), rounded down.
+2. Spendable money (budget minus reserve) is shared by normalized integer weights with an exact largest-remainder allocation (BigInt), after user-fixed targets and floors.
+3. When the allocation is valid, targets plus reserve equal the budget to the paisa. If it is not valid (fixed targets or required provisions do not fit), the result says so and is not "balanced".
+4. Targets are spending goals. Forecasts are computed separately from fictional fixed or per-guest rates, or from agreed quotes.
+5. Per-guest estimates and agreed per-guest rates change with the guest count; fixed costs and agreed fixed quotes do not.
+6. A deposit is part of a commitment, never added to the cost. Outstanding is committed minus paid.
+7. If the forecast exceeds the budget or the spendable amount, the result gives a numerical shortfall and gap, explicit conflicts, and options with exact numbers (use reserve, drop optional items, fewer guests, raise the budget).
+8. Affordability is judged by forecast against budget. Redistributing targets cannot make a plan look affordable.
+9. Required accessibility provisions and stated dietary needs are flagged, floored in the allocation, and never offered as savings. Removing one while its need is still stated blocks a proposal.
+
+Date rules:
+
+- Dates are validated calendar dates. Each task has a stable id, dependencies, an ideal deadline and a due date; urgency is derived from today and never stored.
+- The ideal deadline is preserved. When normal lead time has passed, critical steps become immediate catch-up work (two per day from today, in dependency order) and other steps are compressed in proportion to the time left. The plan explains the compressed schedule.
+- Preparation is never due after the event. Explicit follow-ups may be later. A step is never due before its dependencies. Template cycles are detected and rejected.
+- New events cannot be created in the past. Saved events that have passed are history: no plan is generated or rewritten for them.
+
+Recommendations name the facts they rest on. Outdoor backup steps are added for outdoor or mixed settings without any weather forecast. Cultural practices appear only for entries the user typed.
+
 - Genuine generation will later run locally through WebLLM in a Web Worker behind `AssistantAdapter` (`src/services/ai/adapter.ts`).
 
 ## Assumptions
@@ -58,6 +90,9 @@ Key design rules:
 - Target browsers are current evergreen browsers.
 - Currency is INR only; locale formatting is `en-IN`.
 - Demo presets are fictional demonstration inputs, not recommended market budgets.
+- All planning rates are fictional illustrations, not market prices or quotes (`RATES_DISCLOSURE`). Category weights approximate each category's cost share under those rates, and are meant to be replaced once real quotes exist.
+- Default planning horizons are short, illustrative minimums: wedding 90 days, birthday 14, community 30. The three demo presets sit exactly at their horizon, so none starts compressed; a shorter window triggers the catch-up rules.
+- Dietary needs are budgeted across all guests (the plan does not know how many guests have each need). This is deliberately cautious.
 - Documented limits live in `LIMITS` (`src/domain/primitives.ts`): 10 events; 30 categories, 200 expenses, 200 tasks, 100 vendors, 1,000 guest records and 100 ideas per event; 5,000 expected guests; 2,000,000 characters of saved data.
 - Multiple browser tabs editing the same saved data are not coordinated; the last write wins.
 - Node.js 24 LTS (`>=24.15.0 <25`), recorded in `package.json` and `.nvmrc`. Vitest 5 and jsdom 30 need Node 22.12+/24.

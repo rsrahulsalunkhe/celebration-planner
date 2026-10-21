@@ -1,4 +1,5 @@
 import { addDays, type CalendarHelper } from '@/domain/dates.ts';
+import { DEMO_PRESETS, buildDemoEvent } from '@/data/presets.ts';
 import { createEventRecord } from '@/domain/eventRecord.ts';
 import type {
   BudgetCategory,
@@ -71,15 +72,15 @@ export const category = (id: string, plannedPaise: number): BudgetCategory => ({
 export const expense = (
   id: string,
   categoryId: string,
-  estimatePaise: number,
+  amountPaise: number,
   extra: Partial<ExpenseItem> = {},
 ): ExpenseItem => ({
   id,
   categoryId,
   name: `Expense ${id}`,
-  estimatePaise,
+  estimate: { basis: 'fixed', amountPaise },
   estimateOrigin: 'user',
-  committedPaise: null,
+  commitment: null,
   payments: [],
   ...extra,
 });
@@ -100,3 +101,24 @@ export const vendor = (id: string): Vendor => ({
   status: 'shortlisted',
   quotePaise: null,
 });
+
+/** A demo preset as an event record, with dates pinned to `today`. */
+export function presetEvent(
+  id: 'wedding' | 'birthday' | 'community',
+  today: string = TODAY,
+): EventRecord {
+  const preset = DEMO_PRESETS.find((p) => p.id === id);
+  if (!preset) throw new Error(`unknown preset ${id}`);
+  return buildDemoEvent(preset, {
+    eventId: `event-${id}`,
+    calendar: fixedCalendar(today),
+  });
+}
+
+/** A copy of a record with some profile fields changed. */
+export function withProfile(
+  record: EventRecord,
+  changes: Partial<EventRecord['profile']>,
+): EventRecord {
+  return { ...record, profile: { ...record.profile, ...changes } };
+}

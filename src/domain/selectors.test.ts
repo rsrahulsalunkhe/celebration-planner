@@ -20,7 +20,7 @@ function planned(): EventRecord {
     {
       op: 'expenses/upsert',
       item: expense('caterer', 'food', 3500, {
-        committedPaise: 3200,
+        commitment: { basis: 'fixed', totalPaise: 3200 },
         payments: [
           { id: 'p1', amountPaise: 1000, date: '2026-11-01' },
           { id: 'p2', amountPaise: 500, date: '2026-11-02' },
@@ -38,11 +38,15 @@ describe('selectBudgetSummary', () => {
     const summary = selectBudgetSummary(planned());
     expect(summary).toMatchObject({
       budgetPaise: 10_000,
+      reservePaise: 1000,
+      spendablePaise: 9000,
       plannedPaise: 7000,
-      unallocatedPaise: 3000,
+      unallocatedPaise: 2000,
       estimatedPaise: 6300,
+      forecastPaise: 6000,
       committedPaise: 3200,
       paidPaise: 1500,
+      outstandingPaise: 1700,
     });
     const food = summary.categories.find((c) => c.category.id === 'food');
     expect(food).toMatchObject({
@@ -53,11 +57,11 @@ describe('selectBudgetSummary', () => {
     });
   });
 
-  it('reports over-allocation as a negative unallocated amount', () => {
+  it('reports over-allocation against the spendable amount (budget minus reserve)', () => {
     const over = applyOperations(makeEvent('e', { budgetPaise: 1000 }), [
       { op: 'budgetCategories/upsert', item: category('a', 1500) },
     ]);
-    expect(over && selectBudgetSummary(over).unallocatedPaise).toBe(-500);
+    expect(over && selectBudgetSummary(over).unallocatedPaise).toBe(-600);
   });
 
   it('is all zero for an event with no plan', () => {

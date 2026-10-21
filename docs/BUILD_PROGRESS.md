@@ -23,6 +23,18 @@
 - **Recovery:** corrupt, too-new, oversized or unreadable saved data pauses saving, so it is never overwritten, while the app keeps working in memory. A notice offers Download saved data, a confirmed Clear saved data, and Keep working. Blocked storage shows an export prompt. A full quota or failed write shows Try saving again. Clear saved data removes only keys starting with `celebration-planner:`.
 - **UI:** Events page (list, switch, delete with confirmation, create and edit form with error summary and focus on the first error, demo presets) and a Data page explaining that data stays in this browser, is not an account and is not encrypted. New accessible controls: `TextField`, `SelectField`, `CheckboxGroup`, `ConfirmAction`.
 
+### Stage 3: Planning engine
+
+Pure TypeScript in `src/domain/planning` (no React, no browser, no clock; a test enforces it) with typed rule configuration in `src/data/planning`. Rules are documented in `docs/PROJECT_BRIEF.md`.
+
+- **Functions:** `generatePlan(event, configuration, today)`, `proposeChange`, `previewChanges(state, proposedChange, today)`, and explicit `allocateTargets`, `forecastExpenses`, `assessFeasibility`, `scheduleTasks`, `buildRecommendations`, `analyzeEvent`, `reconcileOperations`.
+- **Configuration:** wedding, birthday and community each have their own category weights, milestone tasks (with dependencies and lead times), vendor checklists, idea tags and ideas, planning horizon and written reasoning. Config is validated (unique ids, known references, positive weights, task cycles, ordering).
+- **Money:** 10% default reserve, editable per event; exact BigInt largest-remainder allocation with locked targets and floors; forecasts independent of targets; per-guest versus fixed costs and agreements; deposits inside commitments; shortfall, conflicts and options with exact numbers; required accessibility and dietary provisions floored and never offered as savings.
+- **Dates:** stable task ids, dependencies, ideal deadlines preserved, catch-up and compression with an explanation, preparation never after the event, follow-ups allowed later, urgency derived from today, cycle detection, past events treated as history, new events in the past rejected (create form).
+- **Recommendations:** each names the facts behind it; outdoor backup without any weather forecast; cultural practices only for entries the user typed.
+- **Schema changes this stage:** `ExpenseItem` now has `estimate` and `commitment` unions (fixed or per-guest, with a deposit) instead of `estimatePaise` and `committedPaise`, plus `requirement`, `optional` and `rationale`; `PlanningTask` gains `kind`, `importance`, `idealDueDate` and `dependsOn`; `Idea` gains `tags`; the profile gains optional `reserveBasisPoints`. No stored data could contain expenses yet (no UI created them), so the saved-data version stays 1.
+- **Wired into the UI so far:** only the past-date rule on the new-event form. The engine is not yet shown on any page.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -38,30 +50,41 @@
 - The stage 1 `src/data/fixtures.ts` sample was replaced by the demo presets.
 - No `e2e/` or `scripts/` directories yet; nothing implements them.
 
+- **Stage 3:** `generatePlan` takes the event (profile plus preferences) rather than the profile alone, because priorities, dietary and accessibility needs live in preferences.
+- **Stage 3:** the reserve is held back from targets, so "unallocated" is measured against budget minus reserve (the stage 2 selector changed accordingly).
+- **Stage 3:** the engine returns generated values as ordinary schema objects, and consequences of a constraint change are expressed as ordinary `ChangeOperation`s, so previewing and accepting share the validated edit path.
+- **Stage 3:** generated items that no longer apply are removed only when nothing is at stake (no commitment or payment, not started, not saved or dismissed); otherwise they are kept.
+- **Stage 3:** blocking conflicts (required provision removed, date moved into the past) stop a proposal; critical ones (over budget) are shown but do not, because the user may choose to accept them.
+- **Stage 3:** category weights approximate cost shares under the fictional rates, so targets and forecasts start roughly aligned. The rates are illustrations, not market data.
+- **Stage 3:** `src/data/templates.ts` (stage 2 id catalog) was replaced by the full configuration. Template ids are unchanged in form.
+
 ## Verification results (actually run)
 
-Windows, Node v24.16.0, npm 11.17.0.
+Windows, Node v24.16.0, npm 11.17.0, at the end of stage 3.
 
-| Check                  | Result                                                                                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run typecheck`    | exit 0                                                                                                                                                   |
-| `npm run lint`         | exit 0 (after fixing 14 findings)                                                                                                                        |
-| `npm run format:check` | exit 0                                                                                                                                                   |
-| `npm run test:run`     | 12 files, 166 tests passed                                                                                                                               |
-| `npm run build`        | OK; JS 399.41 kB (124.08 kB gzip), CSS 9.30 kB                                                                                                           |
-| Mutation check         | Disabling the "do not overwrite protected data" guard made 5 tests fail; restored, 166 pass                                                              |
-| Real browser           | `vite preview` served the build; headless Edge rendered the Events page (screenshot checked) and its DOM contained the expected heading and demo buttons |
+| Check                  | Result                                                     |
+| ---------------------- | ---------------------------------------------------------- |
+| `npm run typecheck`    | exit 0                                                     |
+| `npm run lint`         | exit 0                                                     |
+| `npm run format:check` | exit 0                                                     |
+| `npm run test:run`     | 19 files, 300 tests passed                                 |
+| `npm run build`        | OK; JS 403.98 kB (125.43 kB gzip), CSS 9.36 kB             |
+| Mutation checks        | 6 deliberate rule breaks, each caught by tests (see below) |
 
-The completion check is covered by automated UI tests: create events (form and demos), switch the active event, delete with confirmation, reload and restore the same storage, and recover from corrupt, too-new, unavailable and over-quota storage, plus Clear saved data leaving other keys alone.
+Required numeric cases, all asserted: 10,001 paise with a 1,000 reserve and weights 50:30:20 gives 4,501, 2,700 and 1,800; INR 400 per guest gives INR 48,000 for 120 guests and INR 72,000 for 180; INR 10,000 committed with INR 3,000 paid leaves INR 7,000 outstanding; identical input gives identical output (byte-identical JSON); today, tomorrow, month-end and leap-day deadlines; infeasible budgets give explicit conflicts and options.
+
+Completion check: the engine produces distinct, explainable plans for the three presets. With today pinned to 2026-10-21: wedding forecast ₹4,39,000 (spendable ₹4,50,000), birthday ₹37,000 (₹45,000), community ₹1,43,000 (₹1,80,000). Targets plus the 10% reserve equal each budget exactly.
+
+Mutation checks (each rule was broken in turn, tests run, then restored): deposit added to cost (2 tests failed), required items offered as savings (2), preparation allowed after the event (1), a hidden `Date.now()` in the engine (1), reserve dropped from the allocation (16), cultural tasks added unasked (4). The "after the event" mutant first survived because the clamp is unreachable for valid templates; a test with a follow-up dependency was added and now kills it.
+
+Defects found by tests or checks while building: a wedding at ₹2,00,000 correctly offers no fewer-guests option because fixed costs alone exceed the budget (the expectation, not the engine, was wrong); category weights initially ignored the rates and left targets far from forecasts (retuned); Prettier reformatting broke two of my scripted edits, caught before they could change files silently.
 
 Not verified:
 
-- Reload and recovery against a real browser's `localStorage`. These flows are covered only in jsdom (using an in-memory storage double); in Edge only the initial render was checked.
-- Screen reader behaviour and keyboard-only flow were not tested with assistive technology.
-- Real quota exhaustion and multi-tab behaviour.
-- The GitHub Actions workflow has never run (no remote).
-
-Bugs found and fixed this stage: the budget error for a zero amount read "Amount must be at least 1" (ambiguous unit), now "Budget must be greater than zero"; a PowerShell edit helper wrote UTF-8 BOMs into 7 files, which were detected and stripped.
+- The engine is not displayed in the UI; no page shows a plan, shortfall, conflicts or a before-and-after preview, and nothing applies a plan from the app. It is covered only by unit and integration tests on domain data.
+- Rates, weights, lead times and horizons are fictional or illustrative and have not been checked against real events or reviewed by anyone who plans them.
+- Performance beyond the tests (about 360 plan generations in under two seconds) was not measured.
+- Reload and recovery against a real browser's `localStorage`, assistive-technology use, real quota exhaustion, multi-tab behaviour, and the CI workflow remain unverified, as in stage 2.
 
 ## Remote and push
 
@@ -69,10 +92,10 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 ## Remaining work
 
-1. **Plan generator:** deterministic, explainable plan from rule configuration in `src/data` (amounts, weights and due-date offsets for the template catalog), producing `generated` values.
-2. **Constraint changes and consequences:** change budget, date or guest count; show a diff with reasons as a `ProposedChange`; accept or reject it.
-3. **Budget, timeline, vendors, guests, ideas pages:** manage the plan, including payments.
+1. **Show the plan:** an Overview or Budget page for the active event: the generated plan with reasons, forecast against budget, shortfall, conflicts and options, with a button to apply the plan.
+2. **Constraint-change flow in the UI:** edit guests, budget, date, reserve or needs; show the `previewChanges` result; accept or reject. Add an editable reserve field.
+3. **Budget, timeline, vendors, guests, ideas pages:** manage the plan, including commitments, deposits and payments, and task status.
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
-5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat.
+5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat and proposals going through `previewChanges`.
 6. **E2E tests, accessibility audit, deployment workflow:** add scripts only when implemented.
 7. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.

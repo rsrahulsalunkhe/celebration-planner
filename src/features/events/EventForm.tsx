@@ -23,7 +23,7 @@ import {
   type FieldName,
   type FormErrors,
 } from './eventForm.ts';
-import type { Preferences } from '@/domain/types.ts';
+import type { IsoDate, Preferences } from '@/domain/types.ts';
 
 const EVENT_TYPE_OPTIONS = toOptions(EVENT_TYPE_LABELS);
 const SETTING_OPTIONS = toOptions(SETTING_LABELS);
@@ -51,6 +51,8 @@ const FIELD_LABELS: Record<FieldName, string> = {
 
 interface EventFormProps {
   heading: string;
+  /** Set for a new event: the date may not be before this day. */
+  newEventToday?: IsoDate;
   submitLabel: string;
   initialValues: EventFormValues;
   onSubmit: (profile: EditableProfile, preferences: Preferences) => void;
@@ -59,6 +61,7 @@ interface EventFormProps {
 
 export function EventForm({
   heading,
+  newEventToday,
   submitLabel,
   initialValues,
   onSubmit,
@@ -80,7 +83,7 @@ export function EventForm({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const result = validateEventForm(values);
+    const result = validateEventForm(values, newEventToday ? { newEventToday } : {});
     if (result.ok) {
       setErrors({});
       onSubmit(result.profile, result.preferences);

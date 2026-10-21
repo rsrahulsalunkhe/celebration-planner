@@ -155,6 +155,32 @@ describe('events: create, switch, restore', () => {
     });
   });
 
+  it('rejects a past date for a new event but accepts today', async () => {
+    const user = userEvent.setup();
+    const storage = new MemoryStorage();
+    renderApp({ storage }); // today is pinned to 2026-10-21
+    await click('New event');
+    await user.type(screen.getByLabelText(/Title/), 'Late party');
+    await user.selectOptions(screen.getByLabelText(/Event type/), 'community');
+    await user.type(screen.getByLabelText(/City/), 'Pune');
+    await user.type(screen.getByLabelText(/Expected guests/), '20');
+    await user.type(screen.getByLabelText(/Budget/), '5000');
+    await user.selectOptions(screen.getByLabelText(/Setting/), 'indoor');
+
+    fireEvent.change(screen.getByLabelText(/^Date/), { target: { value: '2026-10-20' } });
+    await click('Create event');
+    expect(
+      screen.getByText('Choose today or a later date for a new event'),
+    ).toBeInTheDocument();
+    expect(storage.data.size).toBe(0);
+
+    fireEvent.change(screen.getByLabelText(/^Date/), { target: { value: '2026-10-21' } });
+    await click('Create event');
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Active event: Late party' }),
+    ).toBeInTheDocument();
+  });
+
   it('edits the active event, increasing its revision', async () => {
     const user = userEvent.setup();
     const storage = new MemoryStorage();

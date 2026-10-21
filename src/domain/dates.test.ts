@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, daysBetween, formatDate, parseIsoDate, todayIso } from './dates.ts';
+import {
+  addDays,
+  daysBetween,
+  formatDate,
+  newEventDateProblem,
+  parseIsoDate,
+  todayIso,
+} from './dates.ts';
 
 describe('parseIsoDate', () => {
   it('accepts real calendar dates', () => {
@@ -45,5 +52,17 @@ describe('todayIso', () => {
 describe('formatDate', () => {
   it('formats without shifting the day', () => {
     expect(formatDate('2027-02-13', 'en-GB')).toBe('13 February 2027');
+  });
+});
+
+describe('newEventDateProblem', () => {
+  it('rejects past dates for new events and accepts today and later', () => {
+    expect(newEventDateProblem('2026-10-20', '2026-10-21')).toMatch(
+      /today or a later date/,
+    );
+    expect(newEventDateProblem('2026-10-21', '2026-10-21')).toBeNull();
+    expect(newEventDateProblem('2026-10-22', '2026-10-21')).toBeNull();
+    expect(newEventDateProblem('2028-02-29', '2028-02-29')).toBeNull();
+    expect(newEventDateProblem('2028-02-28', '2028-02-29')).not.toBeNull();
   });
 });

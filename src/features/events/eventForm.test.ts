@@ -113,3 +113,22 @@ describe('valuesFromRecord', () => {
     });
   });
 });
+
+describe('new events cannot be in the past', () => {
+  it('rejects a past date only when creating, never when editing', () => {
+    const past = { ...valid, date: '2026-10-20' };
+    const created = validateEventForm(past, { newEventToday: '2026-10-21' });
+    expect(created.ok).toBe(false);
+    expect(!created.ok && created.errors.date).toMatch(/today or a later date/);
+
+    expect(validateEventForm(past).ok).toBe(true); // an edit of history is allowed
+    expect(
+      validateEventForm({ ...valid, date: '2026-10-21' }, { newEventToday: '2026-10-21' })
+        .ok,
+    ).toBe(true);
+    expect(
+      validateEventForm({ ...valid, date: '2026-10-22' }, { newEventToday: '2026-10-21' })
+        .ok,
+    ).toBe(true);
+  });
+});

@@ -70,3 +70,12 @@ export function formatDate(value: IsoDate, locale = 'en-IN'): string {
     timeZone: 'UTC',
   }).format(requireDate(value));
 }
+
+/**
+ * New events cannot be created in the past; today is allowed. Returns a
+ * message when the date is not acceptable, or `null`. Events already saved
+ * with a past date are history, not errors, so this is for creation only.
+ */
+export function newEventDateProblem(date: IsoDate, today: IsoDate): string | null {
+  return date < today ? 'Choose today or a later date for a new event' : null;
+}

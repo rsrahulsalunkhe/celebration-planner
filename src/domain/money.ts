@@ -65,31 +65,51 @@ export function parseMoney(text: string, currency: string): number | null {
   return Number.isSafeInteger(minor) ? minor : null;
 }
 
+/** `floor(a * b / c)` for non-negative safe integers, exact even when `a * b` exceeds 2^53. */
+export function mulDivFloor(a: number, b: number, c: number): number {
+  if (!Number.isSafeInteger(a) || !Number.isSafeInteger(b) || !Number.isSafeInteger(c)) {
+    throw new RangeError('mulDivFloor needs safe integers');
+  }
+  if (a < 0 || b < 0 || c <= 0)
+    throw new RangeError('mulDivFloor needs a, b >= 0 and c > 0');
+  return Number((BigInt(a) * BigInt(b)) / BigInt(c));
+}
+
 /**
- * Splits `total` across `weights` using the largest-remainder method. The
- * parts always sum to exactly `total`; ties go to the earlier entry.
+ * Splits `total` across integer `weights` using the largest-remainder method.
+ * The parts always sum to exactly `total`; ties go to the earlier entry. The
+ * arithmetic is exact (BigInt), so no float rounding can lose or invent a paisa.
  */
 export function allocate(total: number, weights: readonly number[]): number[] {
-  if (!Number.isInteger(total) || total < 0) {
+  if (!Number.isSafeInteger(total) || total < 0) {
     throw new RangeError('total must be a non-negative integer');
   }
-  if (weights.length === 0 || weights.some((w) => !(w >= 0))) {
-    throw new RangeError('weights must be a non-empty list of non-negative numbers');
+  if (weights.length === 0 || weights.some((w) => !Number.isSafeInteger(w) || w < 0)) {
+    throw new RangeError('weights must be a non-empty list of non-negative integers');
   }
-  const weightSum = weights.reduce((sum, w) => sum + w, 0);
-  if (weightSum <= 0) throw new RangeError('weights must not all be zero');
+  const big = weights.map((w) => BigInt(w));
+  const weightSum = big.reduce((sum, w) => sum + w, 0n);
+  if (weightSum <= 0n) throw new RangeError('weights must not all be zero');
 
-  const exact = weights.map((w) => (total * w) / weightSum);
-  const parts = exact.map(Math.floor);
-  let leftover = total - parts.reduce((sum, p) => sum + p, 0);
+  const bigTotal = BigInt(total);
+  const parts = big.map((w) => (bigTotal * w) / weightSum);
+  const remainders = big.map((w) => (bigTotal * w) % weightSum);
+  let leftover = Number(bigTotal - parts.reduce((sum, p) => sum + p, 0n));
 
-  const byRemainder = exact
-    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
-    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
-  for (const { index } of byRemainder) {
+  const order = remainders
+    .map((remainder, index) => ({ index, remainder }))
+    .sort((a, b) =>
+      a.remainder === b.remainder
+        ? a.index - b.index
+        : a.remainder > b.remainder
+          ? -1
+          : 1,
+    );
+  const result = parts.map(Number);
+  for (const { index } of order) {
     if (leftover <= 0) break;
-    parts[index] = (parts[index] ?? 0) + 1;
+    result[index] = (result[index] ?? 0) + 1;
     leftover -= 1;
   }
-  return parts;
+  return result;
 }

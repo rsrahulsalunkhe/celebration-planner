@@ -8,10 +8,14 @@ import {
   IDEA_KINDS,
   IDEA_SOURCES,
   IDEA_STATUSES,
+  IMPORTANCES,
   LIMITS,
+  MAX_RESERVE_BASIS_POINTS,
   PRIORITIES,
+  REQUIREMENTS,
   RSVP_STATUSES,
   SETTINGS,
+  TASK_KINDS,
   TASK_STATUSES,
   VALUE_ORIGINS,
   VENDOR_KINDS,
@@ -26,6 +30,7 @@ import {
   templateIdSchema,
   uniqueArray,
 } from './primitives.ts';
+import { findCycle } from './planning/graph.ts';
 
 export const CURRENT_SCHEMA_VERSION = 1;
 
@@ -57,6 +62,11 @@ export const eventProfileShape = z.object({
     .min(1, 'Budget must be greater than zero')
     .max(LIMITS.maxMoneyPaise, 'Budget is too large'),
   setting: settingSchema,
+  /**
+   * Contingency reserve as basis points of the budget (1000 = 10%). Absent
+   * means the default; present means the user chose it.
+   */
+  reserveBasisPoints: boundedInt('Reserve', 0, MAX_RESERVE_BASIS_POINTS).optional(),
   /** Birthdays only. A band, never an exact birth date. */
   ageBand: ageBandSchema.optional(),
   /** Present only on events created from a fictional demonstration preset. */
@@ -102,21 +112,64 @@ export const paymentSchema = z.object({
   note: multiLine('Note', 100).optional(),
 });
 
-export const expenseItemSchema = z.object({
-  id: idSchema,
-  templateId: templateIdSchema.optional(),
-  categoryId: idSchema,
-  vendorId: idSchema.optional(),
-  name: singleLine('Expense name', 100),
-  /** What the item is expected to cost. */
-  estimatePaise: paiseSchema,
-  estimateOrigin: valueOriginSchema,
-  /** Agreed amount once quoted and accepted; `null` means not committed yet. */
-  committedPaise: paiseSchema.nullable(),
-  /** Money actually paid, as dated entries. The paid total is derived. */
-  payments: z.array(paymentSchema).max(LIMITS.paymentsPerExpense),
-  notes: multiLine('Notes', 500).optional(),
-});
+/** What an item is expected to cost: a fixed total, or a rate multiplied by guests. */
+export const costSchema = z.discriminatedUnion('basis', [
+  z.object({ basis: z.literal('fixed'), amountPaise: paiseSchema }),
+  z.object({ basis: z.literal('per-guest'), perGuestPaise: paiseSchema }),
+]);
+
+/**
+ * An agreed amount. A deposit is part of the total, never added to it.
+ * An agreed fixed total does not change when the guest count does; an agreed
+ * per-guest rate does.
+ */
+export const commitmentSchema = z.discriminatedUnion('basis', [
+  z.object({
+    basis: z.literal('fixed'),
+    totalPaise: paiseSchema,
+    depositPaise: paiseSchema.optional(),
+  }),
+  z.object({
+    basis: z.literal('per-guest'),
+    perGuestPaise: paiseSchema,
+    depositPaise: paiseSchema.optional(),
+  }),
+]);
+
+export const expenseItemSchema = z
+  .object({
+    id: idSchema,
+    templateId: templateIdSchema.optional(),
+    categoryId: idSchema,
+    vendorId: idSchema.optional(),
+    name: singleLine('Expense name', 100),
+    /** Forecast cost while nothing is agreed. */
+    estimate: costSchema,
+    estimateOrigin: valueOriginSchema,
+    /** Agreed amount once quoted and accepted; `null` means not committed yet. */
+    commitment: commitmentSchema.nullable(),
+    /** Money actually paid, as dated entries. The paid total is derived. */
+    payments: z.array(paymentSchema).max(LIMITS.paymentsPerExpense),
+    /**
+     * The stated need this item meets (an accessibility need, or `dietary`).
+     * Such items must not be cut to save money.
+     */
+    requirement: z.enum(REQUIREMENTS).optional(),
+    /** Optional items may be offered for trimming when the budget is short. */
+    optional: z.boolean().optional(),
+    rationale: multiLine('Rationale', 400).optional(),
+    notes: multiLine('Notes', 500).optional(),
+  })
+  .refine(
+    (e) =>
+      e.commitment?.basis !== 'fixed' ||
+      e.commitment.depositPaise === undefined ||
+      e.commitment.depositPaise <= e.commitment.totalPaise,
+    {
+      path: ['commitment', 'depositPaise'],
+      error: 'A deposit cannot exceed the agreed total',
+    },
+  );
 
 // ---------------------------------------------------------------------------
 // Plan, people and ideas
@@ -130,8 +183,15 @@ export const planningTaskSchema = z.object({
   dueDateOrigin: valueOriginSchema,
   status: z.enum(TASK_STATUSES),
   vendorId: idSchema.optional(),
-  /** Why the planner suggests this task. */
-  rationale: multiLine('Rationale', 300).optional(),
+  /** Before-event preparation, or an explicit follow-up that happens after it. */
+  kind: z.enum(TASK_KINDS).optional(),
+  importance: z.enum(IMPORTANCES).optional(),
+  /** The usual deadline, kept even when `dueDate` was pulled in or pushed out. */
+  idealDueDate: isoDateSchema.optional(),
+  /** Ids of tasks that should be done first. */
+  dependsOn: z.array(idSchema).max(12).optional(),
+  /** Why the planner suggests this task and this date. */
+  rationale: multiLine('Rationale', 600).optional(),
   notes: multiLine('Notes', 500).optional(),
 });
 
@@ -162,6 +222,11 @@ export const ideaSchema = z.object({
   title: singleLine('Idea title', 100),
   details: multiLine('Details', 500).optional(),
   kind: z.enum(IDEA_KINDS),
+  /** Short labels such as `party-games`, used to group and filter ideas. */
+  tags: z
+    .array(z.string().regex(/^[a-z][a-z0-9-]{0,29}$/))
+    .max(6)
+    .optional(),
   status: z.enum(IDEA_STATUSES),
   source: z.enum(IDEA_SOURCES),
 });
@@ -247,6 +312,7 @@ function checkEventIntegrity(
       id: string;
       templateId?: string | undefined;
       vendorId?: string | undefined;
+      dependsOn?: string[] | undefined;
     }[];
     vendors: { id: string }[];
     guests: { id: string }[];
@@ -286,11 +352,22 @@ function checkEventIntegrity(
       fail(['expenses', index, 'payments'], 'Duplicate payment id');
     }
   });
+  const taskIds = new Set(record.tasks.map((t) => t.id));
   record.tasks.forEach((task, index) => {
     if (task.vendorId !== undefined && !vendorIds.has(task.vendorId)) {
       fail(['tasks', index, 'vendorId'], 'Unknown vendor');
     }
+    for (const dep of task.dependsOn ?? []) {
+      if (dep === task.id)
+        fail(['tasks', index, 'dependsOn'], 'A task cannot depend on itself');
+      else if (!taskIds.has(dep))
+        fail(['tasks', index, 'dependsOn'], 'Unknown task dependency');
+    }
   });
+  const cycle = findCycle(
+    record.tasks.map((t) => ({ id: t.id, dependsOn: t.dependsOn ?? [] })),
+  );
+  if (cycle) fail(['tasks'], `Task dependencies form a cycle: ${cycle.join(' -> ')}`);
 }
 
 /**

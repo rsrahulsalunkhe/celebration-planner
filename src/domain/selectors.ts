@@ -8,7 +8,9 @@ import type {
   PlanningTask,
   SavedAppState,
 } from './types.ts';
-import { LIMITS } from './primitives.ts';
+import { computeReserve } from './planning/allocation.ts';
+import { estimateTotal, forecastExpenses } from './planning/forecast.ts';
+import { DEFAULT_RESERVE_BASIS_POINTS, LIMITS } from './primitives.ts';
 
 /**
  * Everything here is derived from the canonical state on demand. Totals,
@@ -34,44 +36,72 @@ export interface CategoryBreakdown {
   category: BudgetCategory;
   plannedPaise: number;
   estimatedPaise: number;
+  forecastPaise: number;
   committedPaise: number;
   paidPaise: number;
+  outstandingPaise: number;
 }
 
 /**
- * The four money views stay separate:
- * planned (set aside), estimated (expected cost), committed (agreed), paid.
+ * The money views stay separate:
+ * planned (a spending target), estimated (what items were estimated at),
+ * forecast (agreed amount where there is one, else the estimate), committed
+ * (agreed), paid, and outstanding (committed minus paid).
  */
 export interface BudgetSummary {
   budgetPaise: number;
+  reservePaise: number;
+  /** Budget minus reserve. */
+  spendablePaise: number;
   plannedPaise: number;
-  /** Budget minus planned allocations. Negative means over-allocated. */
+  /** Spendable minus planned targets. Negative means the targets are too high. */
   unallocatedPaise: number;
   estimatedPaise: number;
+  forecastPaise: number;
   committedPaise: number;
   paidPaise: number;
+  outstandingPaise: number;
   categories: CategoryBreakdown[];
 }
 
 export function selectBudgetSummary(record: EventRecord): BudgetSummary {
+  const { profile } = record;
+  const forecast = forecastExpenses(
+    record.expenses,
+    profile.guestCount,
+    record.budgetCategories.map((c) => c.id),
+  );
   const categories = record.budgetCategories.map((category): CategoryBreakdown => {
+    const rollup = forecast.categories.find((c) => c.categoryId === category.id);
     const items = record.expenses.filter((e) => e.categoryId === category.id);
     return {
       category,
       plannedPaise: category.plannedPaise,
-      estimatedPaise: sum(items.map((e) => e.estimatePaise)),
-      committedPaise: sum(items.map((e) => e.committedPaise ?? 0)),
-      paidPaise: sum(items.flatMap((e) => e.payments.map((p) => p.amountPaise))),
+      estimatedPaise: sum(
+        items.map((e) => estimateTotal(e.estimate, profile.guestCount)),
+      ),
+      forecastPaise: rollup?.forecastPaise ?? 0,
+      committedPaise: rollup?.committedPaise ?? 0,
+      paidPaise: rollup?.paidPaise ?? 0,
+      outstandingPaise: rollup?.outstandingPaise ?? 0,
     };
   });
+  const reservePaise = computeReserve(
+    profile.budgetPaise,
+    profile.reserveBasisPoints ?? DEFAULT_RESERVE_BASIS_POINTS,
+  );
   const plannedPaise = sum(categories.map((c) => c.plannedPaise));
   return {
-    budgetPaise: record.profile.budgetPaise,
+    budgetPaise: profile.budgetPaise,
+    reservePaise,
+    spendablePaise: profile.budgetPaise - reservePaise,
     plannedPaise,
-    unallocatedPaise: record.profile.budgetPaise - plannedPaise,
+    unallocatedPaise: profile.budgetPaise - reservePaise - plannedPaise,
     estimatedPaise: sum(categories.map((c) => c.estimatedPaise)),
-    committedPaise: sum(categories.map((c) => c.committedPaise)),
-    paidPaise: sum(categories.map((c) => c.paidPaise)),
+    forecastPaise: forecast.forecastPaise,
+    committedPaise: forecast.committedPaise,
+    paidPaise: forecast.paidPaise,
+    outstandingPaise: forecast.outstandingPaise,
     categories,
   };
 }
