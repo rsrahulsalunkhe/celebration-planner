@@ -1,8 +1,8 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import styles from './Button.module.css';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary';
+interface ButtonProps extends ComponentProps<'button'> {
+  variant?: 'primary' | 'secondary' | 'danger';
   icon?: ReactNode;
 }
 

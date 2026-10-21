@@ -1,6 +1,7 @@
 import {
   CalendarClock,
   CalendarHeart,
+  HardDrive,
   Lightbulb,
   Sparkles,
   Store,
@@ -15,10 +16,11 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/events', label: 'Event', icon: CalendarHeart },
+  { path: '/events', label: 'Events', icon: CalendarHeart },
   { path: '/budget', label: 'Budget', icon: Wallet },
   { path: '/timeline', label: 'Timeline', icon: CalendarClock },
   { path: '/vendors', label: 'Vendors', icon: Store },
   { path: '/assistant', label: 'Assistant', icon: Sparkles },
   { path: '/ideas', label: 'Ideas', icon: Lightbulb },
+  { path: '/data', label: 'Data', icon: HardDrive },
 ];

@@ -1,6 +1,7 @@
 import { PartyPopper } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { NAV_ITEMS } from './navigation.ts';
+import { StorageNotice } from './StorageNotice.tsx';
 import styles from './AppShell.module.css';
 
 export function AppShell() {
@@ -35,6 +36,7 @@ export function AppShell() {
         </div>
       </header>
       <main id="main" className={styles.main} tabIndex={-1}>
+        <StorageNotice />
         <Outlet />
       </main>
     </div>

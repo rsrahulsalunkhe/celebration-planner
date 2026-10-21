@@ -1,0 +1,32 @@
+.section {
+  margin-bottom: var(--space-8);
+}
+
+.section > h2 {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-3);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-6);
+  max-width: 44rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.result {
+  margin-top: var(--space-3);
+  font-weight: 600;
+}
+
+.result[data-problem='true'] {
+  color: var(--color-danger);
+}

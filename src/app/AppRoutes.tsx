@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AssistantPage } from '@/features/assistant/AssistantPage.tsx';
 import { BudgetPage } from '@/features/budget/BudgetPage.tsx';
+import { DataPage } from '@/features/data/DataPage.tsx';
 import { EventsPage } from '@/features/events/EventsPage.tsx';
 import { IdeasPage } from '@/features/ideas/IdeasPage.tsx';
 import { TimelinePage } from '@/features/timeline/TimelinePage.tsx';
@@ -19,6 +20,7 @@ export function AppRoutes() {
         <Route path="vendors" element={<VendorsPage />} />
         <Route path="assistant" element={<AssistantPage />} />
         <Route path="ideas" element={<IdeasPage />} />
+        <Route path="data" element={<DataPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

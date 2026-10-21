@@ -1,4 +1,6 @@
-import type { PersistedPlanner, PlannerState } from '@/domain/types.ts';
+import { selectActiveEvent } from '@/domain/selectors.ts';
+import type { SavedAppState } from '@/domain/types.ts';
+import { serializeSavedState } from './storage.ts';
 
 export interface ExportFile {
   filename: string;
@@ -11,16 +13,29 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return slug || 'plan';
+  return slug || 'celebration-planner';
 }
 
-/** Builds the JSON export. Pure, so it can be tested without a browser. */
-export function buildJsonExport(state: PlannerState): ExportFile {
-  const envelope: PersistedPlanner = { version: 1, state };
+/**
+ * JSON export of all saved events, in the same versioned envelope that is
+ * stored in the browser. Chat is never part of it. Pure, so it is testable.
+ */
+export function buildJsonExport(state: SavedAppState): ExportFile {
+  const active = selectActiveEvent(state);
+  const name = active ? active.profile.title : 'celebration-planner';
   return {
-    filename: `${slugify(state.event?.name ?? 'celebration-plan')}.json`,
+    filename: `${slugify(name)}.json`,
     mimeType: 'application/json',
-    content: JSON.stringify(envelope, null, 2),
+    content: JSON.stringify(JSON.parse(serializeSavedState(state)), null, 2),
+  };
+}
+
+/** Wraps unreadable saved text so the user can keep it before clearing. */
+export function buildRecoveryFile(rawText: string): ExportFile {
+  return {
+    filename: 'celebration-planner-recovered-data.txt',
+    mimeType: 'text/plain',
+    content: rawText,
   };
 }
 

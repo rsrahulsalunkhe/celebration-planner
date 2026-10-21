@@ -25,6 +25,15 @@
   background: var(--color-accent-strong);
 }
 
+.danger {
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+}
+
+.danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
 .secondary {
   background: var(--color-surface);
   color: var(--color-text);

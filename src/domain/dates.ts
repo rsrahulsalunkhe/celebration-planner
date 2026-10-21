@@ -49,6 +49,21 @@ export function todayIso(now: Date = new Date()): IsoDate {
   return `${String(now.getFullYear()).padStart(4, '0')}-${month}-${day}`;
 }
 
+/**
+ * Injected source of "today" and day arithmetic. Anything that derives a date
+ * from the current day (demo presets, countdowns) takes one of these, so tests
+ * can pin the date and demos never expire.
+ */
+export interface CalendarHelper {
+  today(): IsoDate;
+  addDays(date: IsoDate, days: number): IsoDate;
+}
+
+export const systemCalendar: CalendarHelper = {
+  today: () => todayIso(),
+  addDays,
+};
+
 export function formatDate(value: IsoDate, locale = 'en-IN'): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'long',

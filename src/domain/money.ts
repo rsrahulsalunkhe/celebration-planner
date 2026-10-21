@@ -3,6 +3,8 @@
  * float, so sums and splits stay exact.
  */
 
+import { CURRENCY } from './primitives.ts';
+
 const digitsCache = new Map<string, number>();
 
 /** Number of decimal places in the currency's minor unit (INR 2, JPY 0). */
@@ -16,7 +18,11 @@ export function minorUnitDigits(currency: string): number {
   return digits;
 }
 
-export function formatMoney(minor: number, currency: string, locale = 'en-IN'): string {
+export function formatMoney(
+  minor: number,
+  currency = CURRENCY,
+  locale = 'en-IN',
+): string {
   const digits = minorUnitDigits(currency);
   const scale = 10 ** digits;
   // Whole amounts read cleaner without decimals; otherwise show all of them
@@ -28,6 +34,17 @@ export function formatMoney(minor: number, currency: string, locale = 'en-IN'): 
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   }).format(minor / scale);
+}
+
+/** Editable text for an amount: `500000`, or `1250.50` when there are paise. */
+export function formatMoneyInput(minor: number, currency = CURRENCY): string {
+  const digits = minorUnitDigits(currency);
+  const scale = 10 ** digits;
+  const whole = Math.floor(minor / scale);
+  const fraction = minor % scale;
+  return fraction === 0
+    ? String(whole)
+    : `${whole}.${String(fraction).padStart(digits, '0')}`;
 }
 
 /**

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { allocate, formatMoney, minorUnitDigits, parseMoney } from './money.ts';
+import {
+  allocate,
+  formatMoney,
+  formatMoneyInput,
+  minorUnitDigits,
+  parseMoney,
+} from './money.ts';
 
 describe('minorUnitDigits', () => {
   it('knows common currencies', () => {
@@ -16,6 +22,17 @@ describe('formatMoney', () => {
 
   it('handles zero-decimal currencies', () => {
     expect(formatMoney(5000, 'JPY', 'en-US')).toBe('¥5,000');
+  });
+});
+
+describe('formatMoneyInput', () => {
+  it('produces text that parseMoney reads back exactly', () => {
+    expect(formatMoneyInput(50_000_000)).toBe('500000');
+    expect(formatMoneyInput(12_500_050)).toBe('125000.50');
+    expect(formatMoneyInput(5)).toBe('0.05');
+    for (const paise of [1, 99, 100, 12_345, 50_000_000, 12_500_050]) {
+      expect(parseMoney(formatMoneyInput(paise), 'INR')).toBe(paise);
+    }
   });
 });
 
