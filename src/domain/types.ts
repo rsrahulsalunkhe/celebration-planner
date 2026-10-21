@@ -12,6 +12,7 @@ import type {
   planningTaskSchema,
   preferencesSchema,
   proposedChangeSchema,
+  runOrderItemSchema,
   savedAppStateSchema,
   savedEnvelopeSchema,
   vendorSchema,
@@ -25,6 +26,8 @@ import type {
   EVENT_TYPES,
   PRIORITIES,
   SETTINGS,
+  TASK_CATEGORIES,
+  TASK_KINDS,
   VALUE_ORIGINS,
 } from './primitives.ts';
 
@@ -38,6 +41,7 @@ export type PlanningTask = z.infer<typeof planningTaskSchema>;
 export type Vendor = z.infer<typeof vendorSchema>;
 export type GuestRecord = z.infer<typeof guestRecordSchema>;
 export type Idea = z.infer<typeof ideaSchema>;
+export type RunOrderItem = z.infer<typeof runOrderItemSchema>;
 export type AssistantMessage = z.infer<typeof assistantMessageSchema>;
 export type ChangeOperation = z.infer<typeof changeOperationSchema>;
 export type ProposedChange = z.infer<typeof proposedChangeSchema>;
@@ -52,6 +56,8 @@ export type Priority = (typeof PRIORITIES)[number];
 export type DietaryNeed = (typeof DIETARY_NEEDS)[number];
 export type AccessibilityNeed = (typeof ACCESSIBILITY_NEEDS)[number];
 export type ValueOrigin = (typeof VALUE_ORIGINS)[number];
+export type TaskCategory = (typeof TASK_CATEGORIES)[number];
+export type TaskKind = (typeof TASK_KINDS)[number];
 export type DemoPresetId = (typeof DEMO_PRESET_IDS)[number];
 
 /** `YYYY-MM-DD`, no time zone. */
@@ -65,4 +71,5 @@ export interface CollectionItems {
   vendors: Vendor;
   guests: GuestRecord;
   ideas: Idea;
+  runOrder: RunOrderItem;
 }

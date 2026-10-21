@@ -83,7 +83,7 @@ describe('the shell', () => {
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(
-      within(nav).getByRole('link', { name: /^Timeline\s*Soon/ }),
+      within(nav).getByRole('link', { name: /^Vendors\s*Soon/ }),
     ).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Budget' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Overview' })).toBeInTheDocument();
@@ -450,10 +450,6 @@ describe('sections that are not built yet', () => {
   it('shows only real figures from the event and says plainly what is missing', async () => {
     renderApp();
     await createDemo('Wedding');
-
-    await follow(/^Timeline/);
-    expect(screen.getByText('Tasks listed').nextElementSibling).toHaveTextContent('0');
-    expect(screen.getByText('90 days')).toBeInTheDocument();
 
     await follow(/^Vendors/);
     expect(screen.getByText('Vendors listed').nextElementSibling).toHaveTextContent('0');

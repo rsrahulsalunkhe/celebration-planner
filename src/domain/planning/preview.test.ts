@@ -53,7 +53,7 @@ describe('applying a generated plan', () => {
     expect(record.profile.revision).toBe(1);
     expect(record.budgetCategories.length).toBeGreaterThan(5);
     expect(record.expenses.length).toBeGreaterThan(8);
-    expect(record.tasks.length).toBe(16);
+    expect(record.tasks.length).toBe(18);
     expect(record.ideas.length).toBeGreaterThan(0);
     expect(record.budgetCategories.every((c) => c.plannedOrigin === 'generated')).toBe(
       true,
@@ -69,7 +69,7 @@ describe('applying a generated plan', () => {
     expect(analysis.plannedPaise + analysis.reservePaise).toBe(
       record.profile.budgetPaise,
     );
-    expect(analysis.tasks).toMatchObject({ total: 16, done: 0, overdue: 0 });
+    expect(analysis.tasks).toMatchObject({ total: 18, done: 0, overdue: 0 });
   });
 
   it('never rewrites an event that is history', () => {

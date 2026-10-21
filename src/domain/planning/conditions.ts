@@ -29,6 +29,8 @@ export function matches(condition: Condition | undefined, ctx: PlanningContext):
       return condition.of.some((c) => matches(c, ctx));
     case 'all':
       return condition.of.every((c) => matches(c, ctx));
+    case 'not':
+      return !matches(condition.of, ctx);
   }
 }
 

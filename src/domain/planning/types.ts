@@ -12,6 +12,8 @@ import type {
   Preferences,
   Priority,
   Setting,
+  TaskCategory,
+  TaskKind,
 } from '../types.ts';
 import type {
   IDEA_KINDS,
@@ -25,6 +27,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type Importance = (typeof IMPORTANCES)[number];
+export type { TaskKind };
 /** An accessibility need, or `dietary`. */
 export type Requirement = (typeof REQUIREMENTS)[number];
 export type VendorKind = (typeof VENDOR_KINDS)[number];
@@ -47,7 +50,8 @@ export type Condition =
   | { kind: 'ageBand'; anyOf: readonly AgeBand[] }
   | { kind: 'guests'; min?: number; max?: number }
   | { kind: 'any'; of: readonly Condition[] }
-  | { kind: 'all'; of: readonly Condition[] };
+  | { kind: 'all'; of: readonly Condition[] }
+  | { kind: 'not'; of: Condition };
 
 export type CostRate =
   { basis: 'fixed'; amountPaise: number } | { basis: 'per-guest'; perGuestPaise: number };
@@ -80,6 +84,8 @@ export interface ExpenseTemplate {
 export type TaskTiming =
   /** A preparation step due this many days before the event. */
   | { kind: 'before'; days: number }
+  /** Something done on the event day itself. */
+  | { kind: 'on-day' }
   /** An explicit follow-up that happens this many days after the event. */
   | { kind: 'after'; days: number };
 
@@ -88,6 +94,7 @@ export interface TaskTemplate {
   title: string;
   timing: TaskTiming;
   importance: Importance;
+  category: TaskCategory;
   /** Template ids that must be done first. */
   dependsOn: readonly string[];
   when?: Condition;

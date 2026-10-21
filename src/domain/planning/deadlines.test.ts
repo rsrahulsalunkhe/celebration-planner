@@ -269,6 +269,7 @@ describe('dependencies and cycles', () => {
       title: id,
       timing: { kind, days },
       importance: 'routine',
+      category: 'planning',
       dependsOn,
       rationale: 'r',
     });
@@ -301,12 +302,42 @@ describe('dependencies and cycles', () => {
         tpl('task.a', 'after', 5),
         tpl('task.b', 'before', 10, ['task.a']),
       ]).join(),
-    ).toMatch(/follow-up/);
+    ).toMatch(/later step/);
     expect(
       validateTaskTemplates([
         tpl('task.a', 'before', 5),
         tpl('task.a', 'before', 5),
       ]).join(),
     ).toMatch(/Duplicate/);
+  });
+});
+
+describe('event-day steps and completed steps', () => {
+  it('schedules an event-day step on the event date, distinct from preparation', () => {
+    const [day] = schedule('2026-11-20', '2026-10-21', [
+      { id: 'run', timing: { kind: 'on-day' }, importance: 'critical', dependsOn: [] },
+    ]);
+    expect(day).toMatchObject({
+      kind: 'event-day',
+      dueDate: '2026-11-20',
+      reason: 'event-day',
+    });
+    expect(idealDeadline('2026-11-20', { kind: 'on-day' })).toBe('2026-11-20');
+  });
+
+  it('gives catch-up slots only to steps that are not done', () => {
+    const critical = { importance: 'critical' as const };
+    const result = schedule('2026-10-26', '2026-10-21', [
+      before('done-1', 30, { ...critical, done: true }),
+      before('done-2', 30, { ...critical, done: true }),
+      before('open-1', 25, critical),
+      before('open-2', 25, critical),
+      before('open-3', 25, critical),
+    ]);
+    const due = Object.fromEntries(result.map((t) => [t.id, t.dueDate]));
+    expect(due['open-1']).toBe('2026-10-21');
+    expect(due['open-2']).toBe('2026-10-21');
+    expect(due['open-3']).toBe('2026-10-22');
+    expect(result.find((t) => t.id === 'done-1')?.explanation).toMatch(/Completed/);
   });
 });

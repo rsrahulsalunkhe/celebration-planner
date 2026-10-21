@@ -183,6 +183,7 @@ describe('eventRecordSchema', () => {
         'expenses',
         'guests',
         'ideas',
+        'runOrder',
         'preferences',
         'profile',
         'tasks',
@@ -403,6 +404,35 @@ describe('planning fields', () => {
     ).toBe(true);
     expect(
       ok(eventRecordSchema, { ...base, ideas: [{ ...idea, tags: ['Not A Tag'] }] }),
+    ).toBe(false);
+  });
+});
+
+describe('saved data from before the running order', () => {
+  it('still loads, with an empty running order and the same version', () => {
+    const { runOrder: _none, ...older } = makeEvent();
+    const parsed = savedEnvelopeSchema.parse({
+      schemaVersion: 1,
+      data: { activeEventId: older.profile.id, events: [older] },
+    });
+    expect(parsed.data.events[0]?.runOrder).toEqual([]);
+  });
+
+  it('accepts the stage 6 task fields and rejects a bad owner label', () => {
+    const base = {
+      ...makeEvent(),
+      tasks: [
+        task('t1', {
+          kind: 'event-day',
+          owner: 'Asha',
+          category: 'volunteers',
+          dueDateSetFor: '2027-01-15',
+        }),
+      ],
+    };
+    expect(ok(eventRecordSchema, base)).toBe(true);
+    expect(
+      ok(eventRecordSchema, { ...base, tasks: [task('t1', { owner: '   ' })] }),
     ).toBe(false);
   });
 });

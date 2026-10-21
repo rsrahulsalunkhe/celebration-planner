@@ -92,6 +92,10 @@ Date rules:
 - The ideal deadline is preserved. When normal lead time has passed, critical steps become immediate catch-up work (two per day from today, in dependency order) and other steps are compressed in proportion to the time left. The plan explains the compressed schedule.
 - Preparation is never due after the event. Explicit follow-ups may be later. A step is never due before its dependencies. Template cycles are detected and rejected.
 - New events cannot be created in the past. Saved events that have passed are history: no plan is generated or rewritten for them.
+- Tasks are preparation, event-day or follow-up. Urgency is derived from the calendar helper. A step past its usual lead time keeps and shows its original deadline with a catch-up recommendation and the problem stated; when the catch-up work exceeds about two steps a day before the event, the timeline says the schedule is not feasible.
+- Prerequisites are never completed automatically. Missing or cyclic dependencies are shown as configuration errors.
+- Changing the event regenerates generated deadlines only. Completed tasks, custom tasks, notes, owners and manual deadlines are kept; a manual deadline set for a different event date is flagged for review.
+- The event-day running order uses explicit local start and end times (`HH:MM`), requires the end after the start, flags overlaps, and is edited through forms rather than dragging.
 
 Recommendations name the facts they rest on. Outdoor backup steps are added for outdoor or mixed settings without any weather forecast. Cultural practices appear only for entries the user typed.
 

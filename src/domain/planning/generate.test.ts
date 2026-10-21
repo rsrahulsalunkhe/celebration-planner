@@ -138,7 +138,10 @@ describe('distinct plans for the three presets', () => {
   it('give each type its own milestones and planning horizon', () => {
     const ids = (id: (typeof PRESETS)[number]) =>
       new Set(plans[id].tasks.map((t) => t.templateId));
-    expect(ids('wedding').has('task.ceremony-plan')).toBe(true);
+    // The wedding demo did not choose the ceremony as a priority, so no ceremony is assumed.
+    expect(ids('wedding').has('task.ceremony-plan')).toBe(false);
+    expect(ids('wedding').has('task.order-of-day')).toBe(true);
+    expect(ids('wedding').has('task.menu-tasting')).toBe(true);
     expect(ids('birthday').has('task.cake-order')).toBe(true);
     expect(ids('community').has('task.permissions')).toBe(true);
     expect(ids('community').has('task.volunteer-roster')).toBe(true);
@@ -154,7 +157,7 @@ describe('distinct plans for the three presets', () => {
       for (const c of p.budgetCategories)
         expect(c.rationale).toMatch(/% of the pool shared by weight/);
       for (const e of p.expenses) expect(e.rationale?.length).toBeGreaterThan(10);
-      for (const t of p.tasks) expect(t.rationale).toMatch(/Due |follow-up/);
+      for (const t of p.tasks) expect(t.rationale).toMatch(/Due |follow-up|event day/);
       for (const r of p.recommendations) {
         expect(r.because.length).toBeGreaterThan(0);
         expect(r.detail.length).toBeGreaterThan(20);

@@ -5,7 +5,10 @@ import type {
   EventType,
   Priority,
   Setting,
+  PlanningTask,
+  TaskCategory,
 } from '@/domain/types.ts';
+import type { Importance, Urgency } from '@/domain/planning/types.ts';
 
 // Display text for the fixed vocabularies in `domain/primitives.ts`.
 
@@ -61,4 +64,37 @@ export const ACCESSIBILITY_LABELS: Record<AccessibilityNeed, string> = {
   'sign-language': 'Sign language interpreter',
   'quiet-space': 'Quiet space',
   'large-print': 'Large-print materials',
+};
+
+export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = {
+  planning: 'Planning and money',
+  guests: 'Guests and invitations',
+  venue: 'Venue or site',
+  food: 'Food and drink',
+  suppliers: 'Suppliers and bookings',
+  access: 'Access',
+  volunteers: 'Volunteers',
+  safety: 'Safety and backups',
+  celebration: 'The celebration itself',
+  'wrap-up': 'Wrap-up',
+};
+
+export const TASK_STATUS_LABELS: Record<PlanningTask['status'], string> = {
+  todo: 'To do',
+  'in-progress': 'In progress',
+  done: 'Done',
+};
+
+export const IMPORTANCE_LABELS: Record<Importance, string> = {
+  critical: 'Critical',
+  important: 'Important',
+  routine: 'Routine',
+};
+
+export const URGENCY_LABELS: Record<Urgency, string> = {
+  done: 'Done',
+  overdue: 'Overdue',
+  'due-today': 'Due today',
+  'due-soon': 'Due within a week',
+  upcoming: 'Later',
 };

@@ -14,6 +14,7 @@ export const LIMITS = {
   vendors: 100,
   guests: 1000,
   ideas: 100,
+  runOrder: 60,
   paymentsPerExpense: 50,
   /** A regenerated plan is applied as one change, so this must cover a whole plan. */
   operationsPerChange: 300,
@@ -95,7 +96,21 @@ export const VENDOR_STATUSES = [
   'declined',
 ] as const;
 export const TASK_STATUSES = ['todo', 'in-progress', 'done'] as const;
-export const TASK_KINDS = ['preparation', 'follow-up'] as const;
+/** Before the event, on the day itself, or an explicit follow-up after it. */
+export const TASK_KINDS = ['preparation', 'event-day', 'follow-up'] as const;
+/** What a task is about, used to group and filter the timeline. */
+export const TASK_CATEGORIES = [
+  'planning',
+  'guests',
+  'venue',
+  'food',
+  'suppliers',
+  'access',
+  'volunteers',
+  'safety',
+  'celebration',
+  'wrap-up',
+] as const;
 export const IMPORTANCES = ['critical', 'important', 'routine'] as const;
 /** Why an expense must not be cut to save money. */
 export const REQUIREMENTS = [...ACCESSIBILITY_NEEDS, 'dietary'] as const;

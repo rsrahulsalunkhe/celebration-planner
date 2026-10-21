@@ -120,7 +120,10 @@ export function reconcileOperations(
       task.templateId !== undefined &&
       !plannedTaskIds.has(task.id) &&
       task.status === 'todo' &&
-      task.dueDateOrigin === 'generated';
+      task.dueDateOrigin === 'generated' &&
+      // Anything the user wrote on it keeps it.
+      task.notes === undefined &&
+      task.owner === undefined;
     if (stale) ops.push({ op: 'tasks/remove', itemId: task.id });
   }
   for (const planned of plan.tasks) {
@@ -133,6 +136,7 @@ export function reconcileOperations(
           dueDate: moves ? planned.dueDate : current.dueDate,
           idealDueDate: planned.idealDueDate,
           kind: planned.kind,
+          category: planned.category,
           importance: planned.importance,
           dependsOn: planned.dependsOn,
           rationale: planned.rationale,

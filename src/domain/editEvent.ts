@@ -98,6 +98,10 @@ function applyOperation(record: EventRecord, op: ChangeOperation): EventRecord {
       return upsert(record, 'ideas', op.item);
     case 'ideas/remove':
       return remove(record, 'ideas', op.itemId);
+    case 'runOrder/upsert':
+      return upsert(record, 'runOrder', op.item);
+    case 'runOrder/remove':
+      return remove(record, 'runOrder', op.itemId);
   }
 }
 

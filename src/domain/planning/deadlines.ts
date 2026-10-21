@@ -1,5 +1,5 @@
 import { addDays, daysBetween, formatDate } from '../dates.ts';
-import type { IsoDate } from '../types.ts';
+import type { IsoDate, TaskKind } from '../types.ts';
 import { orderByDependencies } from './graph.ts';
 import type {
   Importance,
@@ -29,11 +29,27 @@ export const CATCH_UP_TASKS_PER_DAY = 2;
 export const DUE_SOON_DAYS = 7;
 
 export function idealDeadline(eventDate: IsoDate, timing: TaskTiming): IsoDate {
+  if (timing.kind === 'on-day') return eventDate;
   return addDays(eventDate, timing.kind === 'before' ? -timing.days : timing.days);
 }
 
+const KIND_OF_TIMING: Record<TaskTiming['kind'], TaskKind> = {
+  before: 'preparation',
+  'on-day': 'event-day',
+  after: 'follow-up',
+};
+
+/** Days of lead time (before) or delay (after); zero on the day. */
+const daysOf = (timing: TaskTiming): number =>
+  timing.kind === 'on-day' ? 0 : timing.days;
+
 export type ScheduleReason =
-  'on-schedule' | 'catch-up-immediate' | 'compressed' | 'after-dependency' | 'follow-up';
+  | 'on-schedule'
+  | 'catch-up-immediate'
+  | 'compressed'
+  | 'after-dependency'
+  | 'event-day'
+  | 'follow-up';
 
 export interface SchedulableTask {
   id: string;
@@ -41,11 +57,13 @@ export interface SchedulableTask {
   importance: Importance;
   /** Ids of other tasks in this list. */
   dependsOn: readonly string[];
+  /** Already completed: it keeps its ideal date and uses no catch-up slot. */
+  done?: boolean;
 }
 
 export interface ScheduledTask {
   id: string;
-  kind: 'preparation' | 'follow-up';
+  kind: TaskKind;
   idealDate: IsoDate;
   dueDate: IsoDate;
   /** The ideal deadline has passed. */
@@ -88,16 +106,24 @@ export function scheduleTasks(input: ScheduleInput): ScheduledTask[] {
     const task = byId.get(id);
     if (!task) continue;
     const idealDate = idealDeadline(eventDate, task.timing);
-    const lead = task.timing.days;
+    const lead = daysOf(task.timing);
     let dueDate = idealDate;
     let reason: ScheduleReason =
-      task.timing.kind === 'after' ? 'follow-up' : 'on-schedule';
+      task.timing.kind === 'after'
+        ? 'follow-up'
+        : task.timing.kind === 'on-day'
+          ? 'event-day'
+          : 'on-schedule';
     let explanation: string;
 
-    if (task.timing.kind === 'after') {
+    if (task.timing.kind === 'on-day') {
+      explanation = `Done on the event day (${formatDate(eventDate)}).`;
+    } else if (task.timing.kind === 'after') {
       explanation = `A follow-up, ${lead} ${lead === 1 ? 'day' : 'days'} after the event (${formatDate(idealDate)}).`;
     } else if (idealDate >= today) {
       explanation = `Due ${formatDate(idealDate)}: ${lead} ${lead === 1 ? 'day' : 'days'} before the event, the usual lead time for this step.`;
+    } else if (task.done === true) {
+      explanation = `Completed. Its usual deadline was ${formatDate(idealDate)}.`;
     } else if (task.importance === 'critical') {
       const offset = Math.min(
         daysLeft,
@@ -123,11 +149,11 @@ export function scheduleTasks(input: ScheduleInput): ScheduledTask[] {
         explanation += ` Moved to ${formatDate(dueDate)} so it does not fall before a step it depends on.`;
       }
     }
-    if (task.timing.kind === 'before') dueDate = earlierOf(dueDate, eventDate);
+    if (task.timing.kind !== 'after') dueDate = earlierOf(dueDate, eventDate);
 
     scheduled.set(id, {
       id,
-      kind: task.timing.kind === 'before' ? 'preparation' : 'follow-up',
+      kind: KIND_OF_TIMING[task.timing.kind],
       idealDate,
       dueDate,
       behindIdeal: task.timing.kind === 'before' && idealDate < today,
@@ -174,7 +200,10 @@ export function validateTaskTemplates(templates: readonly TaskTemplate[]): strin
   for (const t of templates) {
     if (byId.has(t.id)) problems.push(`Duplicate task template id: ${t.id}`);
     byId.set(t.id, t);
-    if (!Number.isInteger(t.timing.days) || t.timing.days < 0) {
+    if (
+      t.timing.kind !== 'on-day' &&
+      (!Number.isInteger(t.timing.days) || t.timing.days < 0)
+    ) {
       problems.push(`Task ${t.id} has an invalid number of days`);
     }
   }
@@ -183,8 +212,10 @@ export function validateTaskTemplates(templates: readonly TaskTemplate[]): strin
       const target = byId.get(dep);
       if (dep === t.id) problems.push(`Task ${t.id} depends on itself`);
       else if (!target) problems.push(`Task ${t.id} depends on unknown task ${dep}`);
-      else if (t.timing.kind === 'before' && target.timing.kind === 'after') {
-        problems.push(`Preparation task ${t.id} cannot depend on follow-up ${dep}`);
+      else if (t.timing.kind === 'before' && target.timing.kind !== 'before') {
+        problems.push(`Preparation task ${t.id} cannot depend on later step ${dep}`);
+      } else if (t.timing.kind === 'on-day' && target.timing.kind === 'after') {
+        problems.push(`Event-day task ${t.id} cannot depend on follow-up ${dep}`);
       } else if (
         t.timing.kind === 'before' &&
         target.timing.kind === 'before' &&

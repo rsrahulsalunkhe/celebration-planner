@@ -15,6 +15,7 @@ import {
   REQUIREMENTS,
   RSVP_STATUSES,
   SETTINGS,
+  TASK_CATEGORIES,
   TASK_KINDS,
   TASK_STATUSES,
   VALUE_ORIGINS,
@@ -185,7 +186,15 @@ export const planningTaskSchema = z.object({
   vendorId: idSchema.optional(),
   /** Before-event preparation, or an explicit follow-up that happens after it. */
   kind: z.enum(TASK_KINDS).optional(),
+  category: z.enum(TASK_CATEGORIES).optional(),
   importance: z.enum(IMPORTANCES).optional(),
+  /** A local label for who looks after this task. Not an account or a contact. */
+  owner: singleLine('Owner', 60).optional(),
+  /**
+   * The event date when the user last set `dueDate` by hand. If the event moves,
+   * the override is outdated and is flagged for review instead of being moved.
+   */
+  dueDateSetFor: isoDateSchema.optional(),
   /** The usual deadline, kept even when `dueDate` was pulled in or pushed out. */
   idealDueDate: isoDateSchema.optional(),
   /** Ids of tasks that should be done first. */
@@ -194,6 +203,26 @@ export const planningTaskSchema = z.object({
   rationale: multiLine('Rationale', 600).optional(),
   notes: multiLine('Notes', 500).optional(),
 });
+
+/** Local wall-clock time on the event day, `HH:MM` in 24-hour form. */
+export const localTimeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Enter a time as HH:MM, like 18:30');
+
+/** One item in the event-day running order. Times are local; there is no time zone. */
+export const runOrderItemSchema = z
+  .object({
+    id: idSchema,
+    title: singleLine('Item', 100),
+    start: localTimeSchema,
+    end: localTimeSchema,
+    owner: singleLine('Owner', 60).optional(),
+    notes: multiLine('Notes', 300).optional(),
+  })
+  .refine((item) => item.end > item.start, {
+    path: ['end'],
+    error: 'The end time must be after the start time',
+  });
 
 export const vendorSchema = z.object({
   id: idSchema,
@@ -263,6 +292,8 @@ export const changeOperationSchema = z.union([
   removeOp('guests'),
   upsertOp('ideas', ideaSchema),
   removeOp('ideas'),
+  upsertOp('runOrder', runOrderItemSchema),
+  removeOp('runOrder'),
 ]);
 
 export const proposedChangeSchema = z.object({
@@ -296,6 +327,7 @@ export const COLLECTION_NAMES = [
   'vendors',
   'guests',
   'ideas',
+  'runOrder',
 ] as const;
 
 function checkEventIntegrity(
@@ -317,6 +349,7 @@ function checkEventIntegrity(
     vendors: { id: string }[];
     guests: { id: string }[];
     ideas: { id: string; templateId?: string | undefined }[];
+    runOrder: { id: string }[];
   },
   ctx: z.RefinementCtx,
 ): void {
@@ -384,6 +417,8 @@ export const eventRecordSchema = z
     vendors: z.array(vendorSchema).max(LIMITS.vendors),
     guests: z.array(guestRecordSchema).max(LIMITS.guests),
     ideas: z.array(ideaSchema).max(LIMITS.ideas),
+    /** Added in stage 6; saved data from before it has none, so it defaults to empty. */
+    runOrder: z.array(runOrderItemSchema).max(LIMITS.runOrder).default([]),
   })
   .superRefine(checkEventIntegrity);
 

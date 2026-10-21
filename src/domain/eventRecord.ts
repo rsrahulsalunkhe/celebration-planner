@@ -23,5 +23,6 @@ export function createEventRecord(
     vendors: [],
     guests: [],
     ideas: [],
+    runOrder: [],
   };
 }

@@ -29,6 +29,8 @@ import {
 import { formatDate } from '@/domain/dates.ts';
 import { applyOperations } from '@/domain/editEvent.ts';
 import { formatMoney } from '@/domain/money.ts';
+import { withTimelineRegeneration } from '@/domain/planning/timeline.ts';
+import { PLANNING_CONFIGURATION } from '@/data/planning/index.ts';
 import { selectDaysUntil } from '@/domain/selectors.ts';
 import type { EventRecord, Preferences } from '@/domain/types.ts';
 import { buildJsonExport, downloadFile } from '@/services/export.ts';
@@ -102,10 +104,19 @@ function EventOverview({ event }: { event: EventRecord }) {
   const days = selectDaysUntil(profile, calendar);
 
   const saveEdit = (next: EditableProfile, nextPreferences: Preferences) => {
-    const operations = [
-      { op: 'profile/patch' as const, patch: { ...next, ageBand: next.ageBand ?? null } },
-      { op: 'preferences/set' as const, preferences: nextPreferences },
-    ];
+    // Generated deadlines follow the new details; completed, custom and manual ones are kept.
+    const { operations, moved, flagged } = withTimelineRegeneration(
+      event,
+      [
+        {
+          op: 'profile/patch' as const,
+          patch: { ...next, ageBand: next.ageBand ?? null },
+        },
+        { op: 'preferences/set' as const, preferences: nextPreferences },
+      ],
+      PLANNING_CONFIGURATION,
+      calendar.today(),
+    );
     if (!applyOperations(event, operations)) {
       setMessage({
         text: 'Those changes could not be saved. Check the details and try again.',
@@ -120,7 +131,20 @@ function EventOverview({ event }: { event: EventRecord }) {
       expectedRevision: profile.revision,
     });
     setEditing(false);
-    setMessage({ text: 'Saved your changes.', tone: 'success' });
+    const timelineNote = [
+      moved > 0
+        ? `${moved} planned ${moved === 1 ? 'deadline was' : 'deadlines were'} recalculated.`
+        : '',
+      flagged > 0
+        ? `${flagged} ${flagged === 1 ? 'deadline you set needs' : 'deadlines you set need'} review on the Timeline.`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    setMessage({
+      text: timelineNote ? `Saved your changes. ${timelineNote}` : 'Saved your changes.',
+      tone: 'success',
+    });
   };
 
   return (

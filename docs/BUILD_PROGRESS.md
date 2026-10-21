@@ -57,6 +57,19 @@ The Budget page is now a working editor built on the stage 3 money functions (`a
 - **Display:** a readable table of categories (target, status, forecast, agreed, paid, outstanding, target − forecast, totals, reserve, unallocated, budget) and of expenses, beside decorative bars (budget composition, and target against forecast per category) whose colours passed the dataviz palette validator against the card surface.
 - **Navigation:** Budget no longer shows "Soon".
 
+### Stage 6: Timeline and checklist
+
+The Timeline page is now a working checklist for the active event. New pure modules: `src/domain/planning/timeline.ts` (phases, urgency, catch-up, blockers, outdated overrides, schedule health, filters, edits, regeneration) and `src/domain/planning/runOrder.ts` (event-day running order).
+
+- **Tasks:** each shows its title, the reason and how its date was set ("Why this step and date"), deadline, prerequisites, status, and whether it is from the plan or the user's own. Grouped by planning phase (more than two months before, one to two months, final month, final week, event day, after the event) and filtered by status, category, urgency (including "past its usual deadline" and "waiting for another task") and an optional owner label.
+- **Editing:** create a timeline from the plan (tasks only; budget and ideas untouched), add custom tasks (title, when, deadline, category, importance, owner, notes, prerequisites), edit notes, owners and deadlines, set status, mark done or reopen. These are local planning records; nothing is sent or scheduled to notify anyone.
+- **Dates:** preparation, event-day and follow-up tasks are a third task kind (`event-day`) and an `on-day` timing in the configuration. Urgency comes from the calendar helper. A step whose usual lead time has passed shows the original deadline, a catch-up recommendation and the problem in plain words. When there is more catch-up work than about two steps a day can cover before the event, the page says the schedule is not feasible rather than implying that moving deadlines to today fixes it. Completed steps no longer take catch-up slots.
+- **Dependencies:** unfinished prerequisites are shown as "Waiting for"; marking a task done never changes its prerequisites, and the message says they are still open. Missing or cyclic dependencies in the planning rules or in saved tasks are shown as configuration errors.
+- **Regeneration:** saving "Edit event" on the Overview recalculates generated deadlines and adds or removes steps that start or stop applying. Completed tasks, custom tasks, notes, owners and manual deadlines are kept. A manual deadline records the event date it was set for (`dueDateSetFor`); if the event moves it is listed under "Deadlines to review" with Keep this date or Use the planned deadline. Generated tasks with notes or an owner are no longer removed when they stop applying. Past events are history and are not rewritten.
+- **Running order:** items with explicit local `HH:MM` start and end times, validated end after start, sorted by time, overlaps flagged with their length. Items are moved by editing their times in a form; there is no drag-and-drop.
+- **Personalisation:** community events add basic access walks when no needs are listed, a backup plan for volunteers, power and supplies, a day-running task and cleanup. Birthdays add supervision and food-safety steps for under-13s, pick-up arrangements for teenagers, and seating and quieter space for 65 and over. Wedding tasks follow chosen priorities (ceremony, food, decor, entertainment); the ceremony step appears only when the ceremony is a priority, and no tradition is assumed. Every task template now has a category.
+- **Schema (version stays 1):** tasks gain optional `category`, `owner` and `dueDateSetFor`, and the `event-day` kind; events gain a `runOrder` collection that defaults to empty, so saved data from earlier stages still loads.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -97,7 +110,31 @@ The Budget page is now a working editor built on the stage 3 money functions (`a
 - **Stage 5:** budget-page buttons use the normal 44 px size; the stage 4 guest "Remove" button still uses the 36 px small size.
 - **Stage 5:** the JS bundle now includes the planning configuration and passes Vite's 500 kB warning threshold (533 kB, 161 kB gzip). Code-splitting is left for later.
 
+- **Stage 6:** an outdated manual deadline is detected by comparing `dueDateSetFor` with the current event date, not guessed from how far the date is from the plan. Manual deadlines from before stage 6 have no `dueDateSetFor` and are not flagged unless a preparation step falls after the event.
+- **Stage 6:** planning phases count back from the usual (ideal) deadline, so a step that is being caught up stays in the phase it belongs to while its due date shows the catch-up date.
+- **Stage 6:** "not feasible" is a capacity check (open steps past their usual deadline against about two catch-up steps per day before the event). It is a plain warning, not a proof; a feasible-looking count can still be unrealistic for long lead-time steps, which the per-step "problem" text says.
+- **Stage 6:** the running order is a separate per-event collection with `.default([])`, not part of tasks, so its times never mix with task deadlines. Times are local wall-clock times with no time zone, and an item cannot cross midnight.
+- **Stage 6:** the Overview's "Edit event" now regenerates the timeline (tasks only) in the same edit. It still does not rebalance budget targets.
+- **Stage 6:** a `not` condition was added to the configuration language for "no accessibility needs listed".
+
 ## Verification results (actually run)
+
+### Stage 6
+
+Windows, Node v24.16.0, npm 11.17.0.
+
+| Check                  | Result                                                                   |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run typecheck`    | exit 0                                                                   |
+| `npm run lint`         | exit 0                                                                   |
+| `npm run format:check` | exit 0                                                                   |
+| `npm run test:run`     | 26 files, 414 tests passed (32 new: timeline, scheduler, schema, page)   |
+| `npm run build`        | OK; JS 567.34 kB (171.17 kB gzip), CSS 23.63 kB; Vite chunk-size warning |
+
+- **Completion check** (`timeline.test.ts` and `TimelinePage.test.tsx`): a wedding planned 90 days ahead, with two steps done, a note and owner on one, a manual deadline and a custom task, is moved to five days ahead. Generated preparation deadlines fall between today and the event, event-day steps on the event date; done steps keep their status and dates; the custom task, note, owner and manual deadline are unchanged; the manual deadline and the custom task's deadline are flagged for review; catch-up steps show the original deadline, a recommendation and the problem; some steps are due today and others within the week; the capacity check reports the schedule as not feasible. The same journey passes through the real Overview edit form and Timeline page in the UI test. Same-day and past events open, show their status and can still be edited.
+- **Mutation checks:** letting regeneration move completed tasks failed 3 tests; disabling the capacity check failed 2. Both were reverted.
+- **Real browser** (Claude desktop browser pane, Chromium, dev server; pane hidden, so layout was checked through the DOM and screenshots taken at the top of the page): created a timeline for the demo wedding (18 steps in six phase groups); moved the event to five days ahead through Overview, Edit event ("17 planned deadlines were recalculated"); the Timeline showed catch-up advice with usual deadlines and the "would not make this schedule feasible" warning; added two overlapping running-order items and saw the overlap flagged with its length. axe-core 4.10 (WCAG 2.0 to 2.2 A and AA plus best practices): no violations with a task editor, the custom-task form and the running order open, at desktop width and at 320 px. No horizontal page scroll at 320 px.
+- **Not verified this stage:** Firefox, Safari, a physical phone, a screen reader; native date and time pickers were only driven programmatically in the browser and through `fireEvent` in jsdom.
 
 ### Stage 5
 
@@ -159,7 +196,7 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 1. **Show the plan:** generated tasks, ideas and recommendations with reasons on Overview, with an apply button, using the existing engine. (The budget part is done in stage 5.)
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
-3. **Timeline, Vendors, Ideas pages:** manage tasks and status, vendors with quotes, commitments, deposits and payments, and ideas.
+3. **Vendors and Ideas pages:** vendors with quotes, commitments, deposits and payments, and ideas. (Timeline is done in stage 6.)
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
 5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat and proposals going through `previewChanges`.
 6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.

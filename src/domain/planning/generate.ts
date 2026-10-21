@@ -10,6 +10,7 @@ import type {
   IsoDate,
   PlanningTask,
   Preferences,
+  TaskCategory,
 } from '../types.ts';
 import {
   allocateTargets,
@@ -43,6 +44,8 @@ export interface PlanInput {
   profile: EventProfile;
   preferences: Preferences;
   budgetCategories?: readonly BudgetCategory[];
+  /** Existing tasks, so completed steps do not take up catch-up slots. */
+  tasks?: readonly PlanningTask[];
 }
 
 const pct = (basisPoints: number): string => `${(basisPoints / 100).toString()}%`;
@@ -284,12 +287,18 @@ export function generatePlan(
   };
 
   const cultural = uniqueEntries(preferences.culturalPreferences);
+  const doneTemplates = new Set(
+    (event.tasks ?? []).flatMap((t) =>
+      t.status === 'done' && t.templateId ? [t.templateId] : [],
+    ),
+  );
   const schedulable: SchedulableTask[] = [
     ...taskTemplates.map((t) => ({
       id: t.id,
       timing: t.timing,
       importance: t.importance,
       dependsOn: resolveDependencies(t),
+      done: doneTemplates.has(t.id),
     })),
     ...cultural.map((c) => ({
       id: `task.cultural.${c.key}`,
@@ -305,9 +314,13 @@ export function generatePlan(
     tasks: schedulable,
   });
   const scheduleById = new Map(scheduled.map((s) => [s.id, s]));
-  const titleAndWhy = new Map<string, { title: string; rationale: string }>([
+  const titleAndWhy = new Map<
+    string,
+    { title: string; rationale: string; category: TaskCategory }
+  >([
     ...taskTemplates.map(
-      (t) => [t.id, { title: t.title, rationale: t.rationale }] as const,
+      (t) =>
+        [t.id, { title: t.title, rationale: t.rationale, category: t.category }] as const,
     ),
     ...cultural.map(
       (c) =>
@@ -316,6 +329,7 @@ export function generatePlan(
           {
             title: clip(`Plan how to include: ${c.text}`, 120),
             rationale: config.culturalPractice.taskRationale,
+            category: 'celebration' as const,
           },
         ] as const,
     ),
@@ -334,6 +348,7 @@ export function generatePlan(
         dueDateOrigin: 'generated' as const,
         status: 'todo' as const,
         kind: schedule.kind,
+        category: text.category,
         importance: s.importance,
         idealDueDate: schedule.idealDate,
         ...(s.dependsOn.length > 0
