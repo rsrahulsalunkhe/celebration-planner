@@ -1,8 +1,8 @@
 import type { HTMLInputTypeAttribute } from 'react';
 import styles from './Fields.module.css';
+import { FormField } from './FormField.tsx';
 
 interface TextFieldProps {
-  /** Becomes the control's id (`field-<name>`), which forms use to focus errors. */
   name: string;
   label: string;
   value: string;
@@ -14,6 +14,7 @@ interface TextFieldProps {
   multiline?: boolean;
   required?: boolean;
   maxLength?: number;
+  autoComplete?: string;
 }
 
 export function TextField({
@@ -28,55 +29,37 @@ export function TextField({
   multiline = false,
   required = false,
   maxLength,
+  autoComplete,
 }: TextFieldProps) {
-  const id = `field-${name}`;
-  const hintId = hint ? `${id}-hint` : undefined;
-  const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
-  const common = {
-    id,
-    className: styles.control,
-    value,
-    required,
-    maxLength,
-    'aria-invalid': error ? true : undefined,
-    'aria-describedby': describedBy,
-  } as const;
-
   return (
-    <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
-        {label}
-        {required ? ' (required)' : ''}
-      </label>
-      {hint ? (
-        <span id={hintId} className={styles.hint}>
-          {hint}
-        </span>
-      ) : null}
-      {multiline ? (
-        <textarea
-          {...common}
-          rows={3}
-          onChange={(e) => {
-            onChange(e.target.value);
-          }}
-        />
-      ) : (
-        <input
-          {...common}
-          type={type}
-          inputMode={inputMode}
-          onChange={(e) => {
-            onChange(e.target.value);
-          }}
-        />
-      )}
-      {error ? (
-        <span id={errorId} className={styles.error}>
-          {error}
-        </span>
-      ) : null}
-    </div>
+    <FormField name={name} label={label} hint={hint} error={error} required={required}>
+      {(control) =>
+        multiline ? (
+          <textarea
+            {...control}
+            className={styles.control}
+            value={value}
+            rows={3}
+            maxLength={maxLength}
+            onChange={(e) => {
+              onChange(e.target.value);
+            }}
+          />
+        ) : (
+          <input
+            {...control}
+            className={styles.control}
+            type={type}
+            inputMode={inputMode}
+            value={value}
+            maxLength={maxLength}
+            autoComplete={autoComplete}
+            onChange={(e) => {
+              onChange(e.target.value);
+            }}
+          />
+        )
+      }
+    </FormField>
   );
 }

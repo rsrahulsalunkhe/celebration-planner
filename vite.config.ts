@@ -2,10 +2,23 @@ import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// `base: './'` keeps asset URLs relative so the static build works from any
-// path (GitHub Pages project sites, file hosts, a local `vite preview`).
+/**
+ * Where the built app is served from.
+ *
+ * The default `./` makes asset URLs relative, so the build works from any
+ * folder. With HashRouter all routing lives after the `#`, so no server
+ * rewrites are needed either. For a repository subpath such as GitHub Pages
+ * project sites, set it explicitly, which also makes asset URLs absolute:
+ *
+ *   BASE_PATH=/celebration-planner/ npm run build
+ */
+const base = process.env.BASE_PATH ?? './';
+if (!/^(\.\/|\/([\w.-]+\/)*)$/.test(base)) {
+  throw new Error(`BASE_PATH must be "./" or a path like "/repo-name/", got "${base}"`);
+}
+
 export default defineConfig({
-  base: './',
+  base,
   plugins: [react()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

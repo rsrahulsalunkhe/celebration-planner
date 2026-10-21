@@ -32,10 +32,10 @@ Static single-page app. No server; all data stays in the browser.
 
 Layout:
 
-- `src/app`: shell, providers, routing, state.
+- `src/app`: shell (sidebar, compact menu, event switcher), providers, routing, state, error boundary.
 - `src/domain`: types, Zod schemas, money and date utilities, selectors, and `planning/`, the pure planning engine (no React, no browser, no clock; enforced by a test).
 - `src/features`: `events`, `budget`, `timeline`, `vendors`, `assistant`, `ideas`, plus `data` (saved-data explanation, export and clear).
-- `src/components`: reusable accessible controls.
+- `src/components`: reusable accessible controls (Button, ButtonLink, FormField, TextField, Select, Checkbox, CheckboxGroup, Card, Badge, EmptyState, ErrorState, ConfirmDialog, ConfirmAction, StatusMessage, FactList, Stack, ComingSoon).
 - `src/services`: storage, export, AI adapters.
 - `src/data`: demo presets, labels, and `planning/`, the typed rule configuration (one file per event type).
 - `src/styles`, `src/test`, plus `e2e`, `scripts`, `docs`, `.github/workflows` when needed.
@@ -52,6 +52,15 @@ Key design rules:
 - Data stays in this browser's localStorage under keys prefixed `celebration-planner:`. It is not an account and is not encrypted.
 - Core planning is deterministic and rule-based. It must work without a model.
 - The planning engine takes today's date as an argument and never reads the clock or randomness. Identical input gives identical output.
+
+### Interface
+
+- **Information architecture:** Overview (event details, preferences and guest planning), Budget, Timeline, Vendors, Assistant, Ideas, plus New event and Your data. Guest planning is a card inside Overview, not a top-level section. An event switcher in the sidebar chooses the active event.
+- **Routes (HashRouter):** `/` Overview, `/new`, `/budget`, `/timeline`, `/vendors`, `/assistant`, `/ideas`, `/data`; `/events` redirects to `/`; any other address shows a Page not found screen inside the shell.
+- **Layout:** a navy sidebar with warm light surfaces and restrained gold and coral accents (`src/styles/tokens.css`), light only, system fonts, no images beyond a small SVG icon. Below 62rem the sidebar becomes a sticky bar showing the brand, the active event title and a labelled Menu button that opens the navigation beneath it.
+- **Honesty:** sections that are not built say so ("Soon" in the menu, a "Not built yet" card on the page) and show only figures computed from the active event. There are no placeholder totals, fake controls or invented notifications. Status messages appear only for real outcomes.
+- **Accessibility:** one banner, one main, a labelled navigation and an aside; a skip link (handled in script, because a bare `#main` link would change the HashRouter route); one `h1` per page that receives focus after navigation, with the tab title following it; visible labels and focus rings; native controls; a modal `<dialog>` for confirmations (focus starts on Cancel, Escape and a backdrop click cancel, focus returns to the opener); always-present live regions; 44px minimum targets; reduced-motion support; focus never hidden under the sticky bar.
+- **Hosting:** `vite.config.ts` reads `BASE_PATH` (default `./`, relative). Set it to `/repo-name/` for repository subpath hosting; invalid values stop the build. See the README.
 
 ### Planning engine
 

@@ -1,45 +1,80 @@
 .button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  min-height: 2.75rem;
+  min-height: var(--target-size);
+  min-width: var(--target-size);
   padding: 0 var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font: inherit;
   font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
   cursor: pointer;
+  transition: background-color 0.12s ease;
 }
 
-.button:disabled {
+.button:disabled,
+.button[aria-disabled='true'] {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
 .primary {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--navy-900);
+  color: #fff;
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-accent-strong);
+  background: var(--navy-700);
+  color: #fff;
 }
 
-.danger {
-  background: var(--color-danger);
-  color: var(--color-on-danger);
+.accent {
+  background: var(--coral-600);
+  color: #fff;
 }
 
-.danger:hover:not(:disabled) {
-  filter: brightness(0.92);
+.accent:hover:not(:disabled) {
+  background: var(--coral-700);
+  color: #fff;
 }
 
 .secondary {
   background: var(--color-surface);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  color: var(--navy-900);
+  border-color: var(--color-border-strong);
 }
 
 .secondary:hover:not(:disabled) {
   background: var(--color-surface-muted);
+  color: var(--navy-900);
+}
+
+.ghost {
+  background: transparent;
+  color: inherit;
+}
+
+.ghost:hover:not(:disabled) {
+  background: rgb(255 255 255 / 12%);
+  color: inherit;
+}
+
+.danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+  color: #fff;
+}
+
+.small {
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+  font-size: 0.9375rem;
 }

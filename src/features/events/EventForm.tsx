@@ -1,8 +1,9 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Button } from '@/components/Button.tsx';
 import { CheckboxGroup } from '@/components/CheckboxGroup.tsx';
+import { ErrorState } from '@/components/ErrorState.tsx';
 import { toOptions } from '@/components/options.ts';
-import { SelectField } from '@/components/SelectField.tsx';
+import { Select } from '@/components/Select.tsx';
 import { TextField } from '@/components/TextField.tsx';
 import {
   ACCESSIBILITY_LABELS,
@@ -108,12 +109,10 @@ export function EventForm({
       </h2>
 
       {errorNames.length > 0 ? (
-        <div role="alert" className={styles.summary}>
-          <p>
-            Please fix {errorNames.length}{' '}
-            {errorNames.length === 1 ? 'problem' : 'problems'}:
-          </p>
-          <ul>
+        <ErrorState
+          title={`Please fix ${errorNames.length} ${errorNames.length === 1 ? 'problem' : 'problems'}`}
+        >
+          <ul className={styles.problems}>
             {errorNames.map((name) => (
               <li key={name}>
                 <a
@@ -129,7 +128,7 @@ export function EventForm({
               </li>
             ))}
           </ul>
-        </div>
+        </ErrorState>
       ) : null}
 
       <div className={styles.grid}>
@@ -144,7 +143,7 @@ export function EventForm({
           }}
           error={errors.title}
         />
-        <SelectField
+        <Select
           name="eventType"
           label="Event type"
           required
@@ -202,7 +201,7 @@ export function EventForm({
           }}
           error={errors.budget}
         />
-        <SelectField
+        <Select
           name="setting"
           label="Setting"
           required
@@ -215,7 +214,7 @@ export function EventForm({
           error={errors.setting}
         />
         {values.eventType === 'birthday' ? (
-          <SelectField
+          <Select
             name="ageBand"
             label="Age band"
             hint="Optional. We never ask for an exact birth date."

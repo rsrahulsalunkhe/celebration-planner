@@ -1,5 +1,6 @@
-import type { Option } from './options.ts';
+import { Checkbox } from './Checkbox.tsx';
 import styles from './Fields.module.css';
+import type { Option } from './options.ts';
 
 interface CheckboxGroupProps<T extends string> {
   name: string;
@@ -11,6 +12,7 @@ interface CheckboxGroupProps<T extends string> {
   error?: string | undefined;
 }
 
+/** A fieldset of checkboxes with one legend, so a screen reader announces the group. */
 export function CheckboxGroup<T extends string>({
   name,
   legend,
@@ -40,20 +42,18 @@ export function CheckboxGroup<T extends string>({
       ) : null}
       <div className={styles.options}>
         {options.map((option) => (
-          <label key={option.value} className={styles.option}>
-            <input
-              type="checkbox"
-              checked={selected.includes(option.value)}
-              onChange={(e) => {
-                onChange(
-                  e.target.checked
-                    ? [...selected, option.value]
-                    : selected.filter((v) => v !== option.value),
-                );
-              }}
-            />
-            {option.label}
-          </label>
+          <Checkbox
+            key={option.value}
+            label={option.label}
+            checked={selected.includes(option.value)}
+            onChange={(checked) => {
+              onChange(
+                checked
+                  ? [...selected, option.value]
+                  : selected.filter((v) => v !== option.value),
+              );
+            }}
+          />
         ))}
       </div>
       {error ? (

@@ -1,7 +1,7 @@
 import {
   CalendarClock,
-  CalendarHeart,
   HardDrive,
+  LayoutDashboard,
   Lightbulb,
   Sparkles,
   Store,
@@ -13,14 +13,24 @@ export interface NavItem {
   path: string;
   label: string;
   icon: LucideIcon;
+  /** True when the section only explains that it is not built yet. */
+  planned: boolean;
+  /** Match only this exact path (used for the Overview at `/`). */
+  end?: boolean;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/events', label: 'Events', icon: CalendarHeart },
-  { path: '/budget', label: 'Budget', icon: Wallet },
-  { path: '/timeline', label: 'Timeline', icon: CalendarClock },
-  { path: '/vendors', label: 'Vendors', icon: Store },
-  { path: '/assistant', label: 'Assistant', icon: Sparkles },
-  { path: '/ideas', label: 'Ideas', icon: Lightbulb },
-  { path: '/data', label: 'Data', icon: HardDrive },
+  { path: '/', label: 'Overview', icon: LayoutDashboard, planned: false, end: true },
+  { path: '/budget', label: 'Budget', icon: Wallet, planned: true },
+  { path: '/timeline', label: 'Timeline', icon: CalendarClock, planned: true },
+  { path: '/vendors', label: 'Vendors', icon: Store, planned: true },
+  { path: '/assistant', label: 'Assistant', icon: Sparkles, planned: true },
+  { path: '/ideas', label: 'Ideas', icon: Lightbulb, planned: true },
 ];
+
+export const DATA_NAV_ITEM: NavItem = {
+  path: '/data',
+  label: 'Your data',
+  icon: HardDrive,
+  planned: false,
+};

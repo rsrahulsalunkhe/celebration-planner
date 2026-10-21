@@ -2,6 +2,8 @@ import { Download, Trash2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/Button.tsx';
 import { ConfirmAction } from '@/components/ConfirmAction.tsx';
+import { ErrorState } from '@/components/ErrorState.tsx';
+import { StatusMessage, type StatusTone } from '@/components/StatusMessage.tsx';
 import { LIMITS } from '@/domain/primitives.ts';
 import { buildJsonExport, buildRecoveryFile, downloadFile } from '@/services/export.ts';
 import type { PersistenceStatus } from '@/services/persistence.ts';
@@ -74,7 +76,7 @@ export function StorageNotice() {
   const { snapshot, backupText, retrySave, clearSavedData, dismissNotice } =
     usePersistence();
   const state = usePlannerState();
-  const [result, setResult] = useState<{ text: string; problem: boolean } | null>(null);
+  const [result, setResult] = useState<{ text: string; tone: StatusTone } | null>(null);
   const { status, noticeDismissed } = snapshot;
 
   const clearButton = (
@@ -87,10 +89,10 @@ export function StorageNotice() {
         const cleared = clearSavedData();
         setResult(
           cleared
-            ? { text: 'Saved data cleared. You can start again.', problem: false }
+            ? { text: 'Saved data cleared. You can start again.', tone: 'success' }
             : {
                 text: 'Could not clear saved data. The browser may be blocking storage.',
-                problem: true,
+                tone: 'error',
               },
         );
       }}
@@ -98,9 +100,7 @@ export function StorageNotice() {
   );
 
   const resultLine = (
-    <div role="status" className={styles.result} data-problem={result?.problem}>
-      {result?.text}
-    </div>
+    <StatusMessage message={result?.text} tone={result?.tone ?? 'info'} />
   );
 
   if (status.kind === 'ready') return <div className={styles.slot}>{resultLine}</div>;
@@ -111,9 +111,7 @@ export function StorageNotice() {
     return (
       <div className={styles.slot}>
         {resultLine}
-        <p role="status" className={styles.compact}>
-          {copy.short}
-        </p>
+        <StatusMessage message={copy.short} />
       </div>
     );
   }
@@ -123,46 +121,44 @@ export function StorageNotice() {
   return (
     <div className={styles.slot}>
       {resultLine}
-      <section
-        role="alert"
-        className={styles.notice}
-        aria-labelledby="storage-notice-title"
+      <ErrorState
+        tone="warning"
+        title={copy.headline}
+        actions={
+          <>
+            {status.kind === 'save-failed' ? (
+              <Button onClick={retrySave}>Try saving again</Button>
+            ) : null}
+            {paused && backupText !== null ? (
+              <Button
+                icon={<Download aria-hidden size={18} />}
+                onClick={() => {
+                  downloadFile(buildRecoveryFile(backupText));
+                }}
+              >
+                Download saved data
+              </Button>
+            ) : null}
+            {!paused ? (
+              <Button
+                variant="secondary"
+                icon={<Download aria-hidden size={18} />}
+                onClick={() => {
+                  downloadFile(buildJsonExport(state));
+                }}
+              >
+                Export all events (JSON)
+              </Button>
+            ) : null}
+            {paused ? clearButton : null}
+            <Button variant="secondary" onClick={dismissNotice}>
+              Keep working
+            </Button>
+          </>
+        }
       >
-        <h2 id="storage-notice-title" className={styles.title}>
-          {copy.headline}
-        </h2>
-        <p className={styles.body}>{copy.body}</p>
-        <div className={styles.actions}>
-          {status.kind === 'save-failed' ? (
-            <Button onClick={retrySave}>Try saving again</Button>
-          ) : null}
-          {paused && backupText !== null ? (
-            <Button
-              icon={<Download aria-hidden size={18} />}
-              onClick={() => {
-                downloadFile(buildRecoveryFile(backupText));
-              }}
-            >
-              Download saved data
-            </Button>
-          ) : null}
-          {!paused ? (
-            <Button
-              variant="secondary"
-              icon={<Download aria-hidden size={18} />}
-              onClick={() => {
-                downloadFile(buildJsonExport(state));
-              }}
-            >
-              Export all events (JSON)
-            </Button>
-          ) : null}
-          {paused ? clearButton : null}
-          <Button variant="secondary" onClick={dismissNotice}>
-            Keep working
-          </Button>
-        </div>
-      </section>
+        {copy.body}
+      </ErrorState>
     </div>
   );
 }

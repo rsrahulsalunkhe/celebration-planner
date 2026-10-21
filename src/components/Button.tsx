@@ -1,24 +1,47 @@
 import type { ComponentProps, ReactNode } from 'react';
-import styles from './Button.module.css';
+import { VisuallyHidden } from './VisuallyHidden.tsx';
+import { buttonClassName, type ButtonAppearance } from './buttonStyles.ts';
 
-interface ButtonProps extends ComponentProps<'button'> {
-  variant?: 'primary' | 'secondary' | 'danger';
+interface ContentProps {
   icon?: ReactNode;
+  /** Shows only the icon. The text stays in the page for assistive technology. */
+  hideLabel?: boolean | undefined;
 }
 
-export function Button({
-  variant = 'primary',
+export function ButtonContent({
   icon,
+  hideLabel,
+  children,
+}: ContentProps & { children: ReactNode }) {
+  return (
+    <>
+      {icon}
+      {hideLabel ? <VisuallyHidden>{children}</VisuallyHidden> : children}
+    </>
+  );
+}
+
+type ButtonProps = ComponentProps<'button'> & ButtonAppearance & ContentProps;
+
+export function Button({
+  variant,
+  size,
+  icon,
+  hideLabel,
   children,
   type = 'button',
   className,
   ...rest
 }: ButtonProps) {
-  const classes = [styles.button, styles[variant], className].filter(Boolean).join(' ');
   return (
-    <button type={type} className={classes} {...rest}>
-      {icon}
-      {children}
+    <button
+      type={type}
+      className={buttonClassName({ variant, size }, className)}
+      {...rest}
+    >
+      <ButtonContent icon={icon} hideLabel={hideLabel}>
+        {children}
+      </ButtonContent>
     </button>
   );
 }

@@ -3,14 +3,17 @@ import styles from './EmptyState.module.css';
 
 interface EmptyStateProps {
   title: string;
+  icon?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
 }
 
-export function EmptyState({ title, children, actions }: EmptyStateProps) {
+/** Nothing here yet, and what to do next. Not an error. */
+export function EmptyState({ title, icon, children, actions }: EmptyStateProps) {
   const titleId = useId();
   return (
     <section className={styles.panel} aria-labelledby={titleId}>
+      {icon ? <div className={styles.icon}>{icon}</div> : null}
       <h2 id={titleId} className={styles.title}>
         {title}
       </h2>

@@ -1,8 +1,14 @@
 .panel {
-  padding: var(--space-6);
+  padding: var(--space-8) var(--space-6);
   background: var(--color-surface);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.icon {
+  display: inline-flex;
+  margin-bottom: var(--space-3);
+  color: var(--gold-text);
 }
 
 .title {

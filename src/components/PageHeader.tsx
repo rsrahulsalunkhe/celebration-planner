@@ -3,18 +3,28 @@ import styles from './PageHeader.module.css';
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
+  /** Small labels beside the description, such as "Demo". */
+  badges?: ReactNode;
   actions?: ReactNode;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+/** The page's one `h1`. It can take focus, so navigation can move the reader here. */
+export function PageHeader({ title, description, badges, actions }: PageHeaderProps) {
   return (
-    <header className={styles.header}>
-      <div>
-        <h1 className={styles.title}>{title}</h1>
-        {description ? <p className={styles.description}>{description}</p> : null}
+    <div className={styles.header}>
+      <div className={styles.text}>
+        <h1 className={styles.title} tabIndex={-1}>
+          {title}
+        </h1>
+        {description || badges ? (
+          <div className={styles.meta}>
+            {badges}
+            {description ? <p className={styles.description}>{description}</p> : null}
+          </div>
+        ) : null}
       </div>
       {actions ? <div className={styles.actions}>{actions}</div> : null}
-    </header>
+    </div>
   );
 }

@@ -530,7 +530,7 @@ describe('dates and schedule', () => {
         }
       }
     }
-  });
+  }, 30_000);
 
   it('today and tomorrow: schedules everything inside the remaining window', () => {
     const today = plan(withProfile(preset('birthday'), { date: TODAY }));

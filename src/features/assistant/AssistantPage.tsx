@@ -1,6 +1,15 @@
-import { EmptyState } from '@/components/EmptyState.tsx';
+import { Card } from '@/components/Card.tsx';
+import { ComingSoon } from '@/components/ComingSoon.tsx';
+import { FactList } from '@/components/FactList.tsx';
 import { PageHeader } from '@/components/PageHeader.tsx';
+import { Stack } from '@/components/Stack.tsx';
 import { noModelAdapter } from '@/services/ai/adapter.ts';
+
+const AVAILABILITY = {
+  unavailable: 'Not available',
+  loading: 'Loading',
+  ready: 'Ready',
+} as const;
 
 export function AssistantPage() {
   const adapter = noModelAdapter;
@@ -10,10 +19,23 @@ export function AssistantPage() {
         title="Assistant"
         description="Optional help that runs on your device. Planning works without it."
       />
-      <EmptyState title="No local model enabled">
-        Status: {adapter.label} ({adapter.availability()}). A later stage adds an optional
-        on-device model that runs in a Web Worker. Nothing is sent to a server.
-      </EmptyState>
+      <Stack>
+        <Card title="Local model">
+          <FactList
+            facts={[
+              { label: 'Model', value: adapter.label },
+              { label: 'Status', value: AVAILABILITY[adapter.availability()] },
+            ]}
+          />
+        </Card>
+        <ComingSoon title="Chat and suggested changes">
+          <p>
+            The optional on-device assistant is not built yet, so there is nothing to type
+            into and no chat. Nothing is sent to a server, and chat will not be saved when
+            it arrives.
+          </p>
+        </ComingSoon>
+      </Stack>
     </>
   );
 }

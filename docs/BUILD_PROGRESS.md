@@ -35,6 +35,16 @@ Pure TypeScript in `src/domain/planning` (no React, no browser, no clock; a test
 - **Schema changes this stage:** `ExpenseItem` now has `estimate` and `commitment` unions (fixed or per-guest, with a deposit) instead of `estimatePaise` and `committedPaise`, plus `requirement`, `optional` and `rationale`; `PlanningTask` gains `kind`, `importance`, `idealDueDate` and `dependsOn`; `Idea` gains `tags`; the profile gains optional `reserveBasisPoints`. No stored data could contain expenses yet (no UI created them), so the saved-data version stays 1.
 - **Wired into the UI so far:** only the past-date rule on the new-event form. The engine is not yet shown on any page.
 
+### Stage 4: Interface shell and design system
+
+No domain logic was changed: the planning engine, schemas, reducer and persistence are as in stage 3.
+
+- **Shell:** navy sidebar (brand, event switcher, navigation, "Your data") on wide screens; sticky compact bar with brand, active event title and a labelled Menu button below 62rem. Skip link, one banner, one main, a labelled nav and aside, focus moved to the page heading after navigation, tab title following the page, error boundary so a failing page never blanks the app, and a Page not found screen inside the shell.
+- **Pages:** Overview (event details, preferences, **guest planning** with add, reply and remove, edit and delete), New event (demonstrations plus the form), and Budget, Timeline, Vendors, Ideas and Assistant, which show only real figures from the active event (budget, reserve, left to plan, dates, counts) beside a clear "Not built yet" card. Your data restyled.
+- **Components:** Button (with an icon-only mode that keeps a text label), ButtonLink, FormField with TextField, Select, Checkbox and CheckboxGroup built on it, Card, Badge, EmptyState, ErrorState, ConfirmDialog (native modal `<dialog>`) with ConfirmAction, StatusMessage (always-present live region), FactList, Stack, ComingSoon.
+- **Hosting:** `BASE_PATH` configures the Vite base for repository subpaths; the default stays relative.
+- **Visual system:** warm light surfaces, navy, restrained gold and coral, system fonts. The earlier dark colour scheme was dropped deliberately.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -58,33 +68,47 @@ Pure TypeScript in `src/domain/planning` (no React, no browser, no clock; a test
 - **Stage 3:** category weights approximate cost shares under the fictional rates, so targets and forecasts start roughly aligned. The rates are illustrations, not market data.
 - **Stage 3:** `src/data/templates.ts` (stage 2 id catalog) was replaced by the full configuration. Template ids are unchanged in form.
 
+- **Stage 4:** the interface is light only. The stage 1 to 3 dark scheme was removed so the navy and warm palette could be tuned for contrast once.
+- **Stage 4:** confirmation uses the native `<dialog>` with `showModal()`, so the browser provides the inert background and focus containment; jsdom lacks it, so unit tests use a small stand-in and real behaviour was verified in Edge.
+- **Stage 4:** the skip link is handled in script (`preventDefault` then focus `main`), because a plain `#main` link would be read by HashRouter as a route change.
+- **Stage 4:** the menu is "open for" one navigation (state keyed by `location.key`), so any navigation closes it without an effect. The error boundary is keyed by path, so replacing history state does not remount a page.
+- **Stage 4:** the creation notice travels in router state with the new event's id and is cleared once shown, so it never appears under a different event.
+- **Stage 4:** the old `/events` address redirects to the Overview.
+- **Stage 4:** Budget, Timeline, Vendors and Ideas pages do not call the planning engine; they show only simple values already in state. Showing generated plans is the next stage.
+
 ## Verification results (actually run)
 
-Windows, Node v24.16.0, npm 11.17.0, at the end of stage 3.
+Windows, Node v24.16.0, npm 11.17.0, at the end of stage 4.
 
-| Check                  | Result                                                     |
-| ---------------------- | ---------------------------------------------------------- |
-| `npm run typecheck`    | exit 0                                                     |
-| `npm run lint`         | exit 0                                                     |
-| `npm run format:check` | exit 0                                                     |
-| `npm run test:run`     | 19 files, 300 tests passed                                 |
-| `npm run build`        | OK; JS 403.98 kB (125.43 kB gzip), CSS 9.36 kB             |
-| Mutation checks        | 6 deliberate rule breaks, each caught by tests (see below) |
+| Check                  | Result                                          |
+| ---------------------- | ----------------------------------------------- |
+| `npm run typecheck`    | exit 0                                          |
+| `npm run lint`         | exit 0                                          |
+| `npm run format:check` | exit 0                                          |
+| `npm run test:run`     | 21 files, 338 tests passed                      |
+| `npm run build`        | OK; JS 421.14 kB (130.95 kB gzip), CSS 15.16 kB |
+| Real browser (Edge)    | 168 of 168 checks passed (details below)        |
 
-Required numeric cases, all asserted: 10,001 paise with a 1,000 reserve and weights 50:30:20 gives 4,501, 2,700 and 1,800; INR 400 per guest gives INR 48,000 for 120 guests and INR 72,000 for 180; INR 10,000 committed with INR 3,000 paid leaves INR 7,000 outstanding; identical input gives identical output (byte-identical JSON); today, tomorrow, month-end and leap-day deadlines; infeasible budgets give explicit conflicts and options.
+**Real-browser check** (headless Edge driven over the DevTools protocol with real mouse and keyboard events; a scratch script, not part of the repository). Run at 1280 px, 390 px and 320 px, against the default build, a `BASE_PATH=/celebration-planner/` build served under that subpath, and the default build served from an unrelated subfolder:
 
-Completion check: the engine produces distinct, explainable plans for the three presets. With today pinned to 2026-10-21: wedding forecast ₹4,39,000 (spendable ₹4,50,000), birthday ₹37,000 (₹45,000), community ₹1,43,000 (₹1,80,000). Targets plus the 10% reserve equal each budget exactly.
+- Landmarks (one banner, main and nav), no horizontal scroll, navy 280 px sidebar on desktop, menu button and hidden navigation on mobile, event title visible in the bar, content not under the bar, heading never hidden under the sticky bar after focus.
+- Keyboard: skip link is first and visible and does not change the route; Tab reaches the Menu button and links; Enter and Space open the menu; Escape closes it and returns focus to the button; Enter on a link navigates, closes the menu and focuses the new heading; the tab title follows.
+- Mouse: create a demo, add a guest (live-region announcement, counts update), switch events, delete with confirmation, all persisted to localStorage.
+- Dialog: modal (`:modal`), focus starts on Cancel, Tab and Shift+Tab never reach the page behind, Escape and a backdrop click close it and return focus, cancelling deletes nothing.
+- Unknown address shows a page inside the shell. Reduced motion removes transitions.
+- axe-core (WCAG 2.0 to 2.2 A and AA plus best practices): no violations on welcome, menu open, new event, overview with an event and a guest, Budget, Timeline, Vendors, Assistant, Ideas, Your data, not found and the open dialog, at each width.
+- No console errors, warnings, exceptions or failed requests in any run; deep links work in both base-path builds.
 
-Mutation checks (each rule was broken in turn, tests run, then restored): deposit added to cost (2 tests failed), required items offered as savings (2), preparation allowed after the event (1), a hidden `Date.now()` in the engine (1), reserve dropped from the allocation (16), cultural tasks added unasked (4). The "after the event" mutant first survived because the clamp is unreachable for valid templates; a test with a follow-up dependency was added and now kills it.
-
-Defects found by tests or checks while building: a wedding at ₹2,00,000 correctly offers no fewer-guests option because fixed costs alone exceed the budget (the expectation, not the engine, was wrong); category weights initially ignored the rates and left targets far from forecasts (retuned); Prettier reformatting broke two of my scripted edits, caught before they could change files silently.
+Defects found by the real browser or screenshots and fixed this stage: content outside any landmark (axe "region"); the menu staying open over the content after choosing an event on mobile; a stale "Created ..." notice appearing under a different event (found in a screenshot, regression test added and mutation-checked); a truncated event select; at 320 px the brand wrapped and the focused heading sat under the sticky bar; `replace` navigation remounting the page and losing its message. An unrelated test timeout under heavy parallel load was also fixed with an explicit timeout.
 
 Not verified:
 
-- The engine is not displayed in the UI; no page shows a plan, shortfall, conflicts or a before-and-after preview, and nothing applies a plan from the app. It is covered only by unit and integration tests on domain data.
-- Rates, weights, lead times and horizons are fictional or illustrative and have not been checked against real events or reviewed by anyone who plans them.
-- Performance beyond the tests (about 360 plan generations in under two seconds) was not measured.
-- Reload and recovery against a real browser's `localStorage`, assistive-technology use, real quota exhaustion, multi-tab behaviour, and the CI workflow remain unverified, as in stage 2.
+- No real screen reader (NVDA, JAWS, VoiceOver) was used; axe and keyboard checks do not replace that.
+- Only Edge (Chromium) was driven. Firefox and Safari were not run, nor a physical phone (touch, on-screen keyboard, viewport changes).
+- The browser script is not in the repository, so these browser checks are not repeatable by the project's own commands. Unit tests cover behaviour in jsdom only.
+- Print layout, zoom to 400% and Windows high-contrast mode were not checked.
+- Colour contrast was checked by axe only on the states listed.
+- The GitHub Actions workflow has never run (no remote).
 
 ## Remote and push
 
@@ -92,10 +116,10 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 ## Remaining work
 
-1. **Show the plan:** an Overview or Budget page for the active event: the generated plan with reasons, forecast against budget, shortfall, conflicts and options, with a button to apply the plan.
+1. **Show the plan:** generated plan with reasons, forecast against budget, shortfall, conflicts and options on Overview and Budget, with an apply button, using the existing engine.
 2. **Constraint-change flow in the UI:** edit guests, budget, date, reserve or needs; show the `previewChanges` result; accept or reject. Add an editable reserve field.
-3. **Budget, timeline, vendors, guests, ideas pages:** manage the plan, including commitments, deposits and payments, and task status.
+3. **Timeline, Vendors, Ideas pages:** manage tasks and status, vendors with quotes, commitments, deposits and payments, and ideas.
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
 5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat and proposals going through `previewChanges`.
-6. **E2E tests, accessibility audit, deployment workflow:** add scripts only when implemented.
+6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
 7. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.

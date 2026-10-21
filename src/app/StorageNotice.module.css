@@ -1,47 +1,10 @@
 .slot {
-  margin-bottom: var(--space-4);
-}
-
-.notice {
-  padding: var(--space-4);
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius-md);
-}
-
-.title {
-  font-size: 1.0625rem;
-}
-
-.body {
-  margin: var(--space-2) 0 var(--space-3);
-  max-width: 44rem;
-}
-
-.actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.compact {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-}
-
-.result {
-  font-weight: 600;
-}
-
-.result[data-problem='true'] {
-  color: var(--color-danger);
-}
-
-.result:empty {
-  display: none;
+/* Only reserve space when something is actually showing. */
+.slot:has(> :not(:empty)) {
+  margin-bottom: var(--space-4);
 }
