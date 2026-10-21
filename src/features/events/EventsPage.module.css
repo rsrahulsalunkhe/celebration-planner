@@ -1,0 +1,30 @@
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.facts > div {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.facts dt {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.facts dd {
+  margin: var(--space-1) 0 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.notes {
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+}
