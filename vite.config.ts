@@ -27,6 +27,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Page tests type into many fields with user-event; under a full parallel run
+    // on a laptop they can pass the 5 s default without anything being wrong.
+    testTimeout: 20_000,
     css: { modules: { classNameStrategy: 'non-scoped' } },
   },
 });

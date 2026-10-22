@@ -107,7 +107,13 @@ Date rules:
 
 Recommendations name the facts they rest on. Outdoor backup steps are added for outdoor or mixed settings without any weather forecast. Cultural practices appear only for entries the user typed.
 
-- Genuine generation will later run locally through WebLLM in a Web Worker behind `AssistantAdapter` (`src/services/ai/adapter.ts`).
+Assistant rules:
+
+- Assistants implement `AssistantProvider` (`src/services/ai/assistant.ts`). They receive a bounded context snapshot and the message, never the saved record, and answer with a question, an informational reply, a creative draft or a proposed change.
+- A proposed change is a validated intent. The planning engine builds the proposal and its before-and-after preview from the current event, and the user must press Apply change. Apply checks the event and revision again. Payments, deleting events, marking vendors booked and running code are not possible.
+- The built-in `GuidedPlannerProvider` is deterministic and labelled "Guided planner". It never guesses units, asks one focused question when a request is ambiguous or combines changes, and points to the right form for anything it does not support.
+- Conversations are kept per event for the session only and are never saved. Replies for another event or an older revision are discarded.
+- A local model (WebLLM in a Web Worker) may later implement the same interface.
 
 ## Assumptions
 

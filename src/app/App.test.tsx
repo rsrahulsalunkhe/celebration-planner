@@ -451,8 +451,6 @@ describe('sections that are not built yet', () => {
 
     await follow(/^Ideas/);
     expect(screen.getByText('Ideas saved').nextElementSibling).toHaveTextContent('0');
-    await follow(/^Assistant/);
-    expect(screen.getByText('Not available')).toBeInTheDocument();
     expect(screen.getByText('Not built yet')).toBeInTheDocument();
   });
 

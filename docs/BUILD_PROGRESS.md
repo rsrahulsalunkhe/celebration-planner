@@ -82,6 +82,16 @@ New pure modules: `src/domain/planning/vendors.ts` (requirements, matching, rank
 - **Guest panel (Overview):** name or alias, group size, reply, optional dietary or access notes; add, edit and remove. No email, phone, birthday or invitations. RSVP counts are shown beside the expected guest count, which stays the forecasting input. "Change the expected guest count" previews a count (from accepted replies, accepted plus no reply, or a typed number) with forecast and headroom before and after; Apply uses the preview's revision; Discard changes nothing. RSVP edits never change the count or the budget.
 - **Schema (version stays 1):** vendors gain optional `sampleId` (unique per event), `serviceArea`, `capacityMax`, `capabilities` and `checksDone`. `CAPABILITIES` lists accessibility needs, dietary needs, `weather-cover` and `power-backup`.
 
+### Stage 8: Assistant
+
+The Assistant page is now a working, rule-based assistant. New modules in `src/services/ai`: `assistant.ts` (the replaceable `AssistantProvider` contract and typed requests, responses and change intents), `context.ts` (bounded context snapshot), `guidedProvider.ts` (`GuidedPlannerProvider`) and `proposals.ts` (intent to engine proposal, operation guard, re-check before apply). The stage 1 `adapter.ts` placeholder was replaced.
+
+- **Contract:** a request carries the event id, revision, request id, a bounded context snapshot and the message (at most 500 characters). A response is a question, an informational reply, a creative draft or a proposed change, and always echoes the request id, event id, revision and provider label. A provider never receives the saved record and never returns operations: a change is a Zod-validated intent (set guests, set budget, reduce budget by a percentage, set setting, set reserve). Payments, deleting events, marking vendors booked and running code are not representable.
+- **Snapshot:** event facts, preferences, money totals, the five largest categories, the five most pressing open tasks with blockers, vendor and guest counts, and up to five concerns. Guest names, notes and contact details are never included.
+- **Guided planner:** labelled "Guided planner" everywhere and described as rule-based, not a language model. Supported: what to do next, explain the budget, reduce the budget by a percentage or an explicit rupee amount, set the budget (rupees or lakh), set guests to an exact number, move indoors, outdoors or both, set the reserve, idea drafts (with dietary filters), and help. A bare number for money or the reserve, a vague or ranged guest count, an out-of-range value, a mismatched event type or more than one change in one message gets a focused question with answer chips. Payments, deleting events, vendors and bookings, tasks, guests and the date get a short explanation and a link to the right page. Anything else gets the list of supported commands.
+- **Proposals:** built by the planning engine (`previewChanges`) from the event as it is when the reply arrives. Consequences are added only for parts of the plan the event already has, so a change never quietly creates a budget, timeline or idea list. Each shows field changes, a before-and-after table (budget, reserve, forecast, over the whole budget, into the reserve), changed costs, timeline changes and new or resolved problems, with Apply change and Dismiss. The preview is recomputed on every render; once the event changes, the proposal says so and offers "Ask again with the current event". Apply checks the active event, the revision, validity and the operation guard again, then edits through the reducer with the expected revision.
+- **Experience:** one conversation per event in memory for the session (at most 40 messages; never saved or exported), example chips when empty, suggestion chips, a working state with Cancel, an error state with Ask again, Enter to send and Shift+Enter for a new line, focus kept in the message box, completion announced once in a polite status region (the message list itself is not live), and automatic scrolling only for someone already at the end (otherwise a "New reply below" button). Leaving the event cancels the request; a reply for a cancelled or replaced request, another event, or an older revision is discarded with a note. All text is rendered as React text.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -136,7 +146,32 @@ New pure modules: `src/domain/planning/vendors.ts` (requirements, matching, rank
 - **Stage 7:** changing the expected guest count from the guest panel regenerates the timeline like any event edit, and does not re-share budget targets, matching the Overview edit.
 - **Stage 7:** labels in the guest form are now "Name or alias" and "Group size" (stage 4 tests updated).
 
+- **Stage 8:** providers return intents, not operations, and the app builds the proposal with the engine. A future model-based provider can therefore never put payment, vendor or deletion operations into a proposal; `forbiddenOperations` checks again before applying in case a later change to the engine ever produced one.
+- **Stage 8:** "Reduce my budget by 15" (no unit) is a question, and so is "Set the budget to 450000": rupees must be written with ₹, Rs, INR, rupees or lakh. "15%" and "₹15" are accepted as written.
+- **Stage 8:** more than one command in one message is split on "and", "then", commas and semicolons and answered with one chip per command, so each change gets its own preview.
+- **Stage 8:** the provider is injected through `AssistantProviderContext` (default: the guided planner), so tests use slow and failing providers, and a local model could be added without touching the page.
+- **Stage 8:** conversations are held by `AssistantSessionProvider` around the routes, so leaving the Assistant page keeps them for the session; reloading clears them.
+- **Stage 8:** Vitest's per-test timeout is 20 s. Page tests that type into many fields passed alone but went over 5 s under a full parallel run.
+
 ## Verification results (actually run)
+
+### Stage 8
+
+Windows, Node v24.16.0, npm 11.17.0.
+
+| Check                  | Result                                                                   |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run typecheck`    | exit 0                                                                   |
+| `npm run lint`         | exit 0                                                                   |
+| `npm run format:check` | exit 0                                                                   |
+| `npm run test:run`     | 30 files, 476 tests passed (36 new: provider, proposals, page)           |
+| `npm run build`        | OK; JS 658.06 kB (197.23 kB gzip), CSS 30.73 kB; Vite chunk-size warning |
+
+- **Completion check:** each supported command reads the current event (the budget explanation and "set guests" figures equal the ledger's; "reduce by 15%" previews ₹5,00,000 → ₹4,25,000); proposals change nothing until Apply; a proposal is refused for a different event and after any other edit, by `checkBeforeApply` and by the reducer; on the page, applying one proposal makes an older one stale and only "Ask again" produces a fresh one; a slow reply that arrives after the event changed is discarded; switching events cancels the request and starts that event's own conversation.
+- **Mutation checks:** accepting stale proposals failed 1 test; treating a bare number as a percentage failed 2. Both were reverted.
+- **Real browser** (Claude desktop browser pane, Chromium, dev server): created the demo wedding and budget; typed "Reduce my budget by 15" and pressed Enter (question with 15% and ₹15 chips), then "What changes if we move outdoors?" (proposal: setting indoor → outdoor, forecast ₹4,39,000 → ₹4,69,000 from the covered backup, ₹19,000 into the reserve). Focus stayed in the message box and "Guided planner replied." was announced once. axe-core 4.10: no violations at 1280 px and at 320 px with two proposals open; no horizontal page scroll; no console errors.
+- **Defect found and fixed:** at 320 px the proposal's calculation table scrolled sideways but could not be reached with the keyboard (axe `scrollable-region-focusable`); its wrapper is now focusable and described by the caption, without adding a landmark per proposal.
+- **Not verified this stage:** a screen reader's actual announcements, Firefox, Safari and a physical phone.
 
 ### Stage 7
 
@@ -235,7 +270,7 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
 3. **Ideas page:** save, dismiss and add ideas. (Timeline is done in stage 6, vendors in stage 7.)
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
-5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat and proposals going through `previewChanges`.
+5. **Optional local model:** a WebLLM provider in a Web Worker implementing `AssistantProvider` and returning the same validated intents. (The guided planner, contract and proposal flow are done in stage 8.)
 6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
 7. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
 8. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.
