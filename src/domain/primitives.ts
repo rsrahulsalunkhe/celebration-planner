@@ -88,6 +88,17 @@ export const VENDOR_KINDS = [
   'transport',
   'other',
 ] as const;
+/**
+ * Things a vendor can or cannot do that a plan may require: each accessibility
+ * need, each dietary need, a covered alternative and power backup.
+ */
+export const CAPABILITIES = [
+  ...ACCESSIBILITY_NEEDS,
+  ...DIETARY_NEEDS,
+  'weather-cover',
+  'power-backup',
+] as const;
+
 export const VENDOR_STATUSES = [
   'shortlisted',
   'contacted',

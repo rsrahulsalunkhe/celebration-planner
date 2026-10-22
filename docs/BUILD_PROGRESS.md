@@ -70,6 +70,18 @@ The Timeline page is now a working checklist for the active event. New pure modu
 - **Personalisation:** community events add basic access walks when no needs are listed, a backup plan for volunteers, power and supplies, a day-running task and cleanup. Birthdays add supervision and food-safety steps for under-13s, pick-up arrangements for teenagers, and seating and quieter space for 65 and over. Wedding tasks follow chosen priorities (ceremony, food, decor, entertainment); the ceremony step appears only when the ceremony is a priority, and no tradition is assumed. Every task template now has a category.
 - **Schema (version stays 1):** tasks gain optional `category`, `owner` and `dueDateSetFor`, and the `event-day` kind; events gain a `runOrder` collection that defaults to empty, so saved data from earlier stages still loads.
 
+### Stage 7: Vendors and guests
+
+New pure modules: `src/domain/planning/vendors.ts` (requirements, matching, ranking, organizer checklist, shortlisting, agreed quote to expense) and `src/domain/planning/guests.ts` (RSVP suggestions and the forecasting-count preview). Sample data in `src/data/sampleVendors.ts`.
+
+- **Sample data:** 17 fictional vendors across venue, catering, photography, music, decor, transport and equipment, each with a service area, event types, capacity where relevant, an illustrative fixed or per-guest price, stated capabilities and things to confirm. Labelled "Sample data" everywhere, with a disclosure on the page. No ratings, contact details, availability or bookings; a test checks the data for them. Shortlisting stores only the name, kind and `sampleId`; facts are read from the dataset, never copied into saved records.
+- **Vendor features:** search (name, area, summary, notes and capabilities the vendor can provide), category filter, shortlist, compare up to three side by side, add your own vendor, and record contact, latest quote, selection status, notes and confirmed capabilities. "Booked" is labelled as the organizer's own record; nothing is contacted or reserved.
+- **Matching:** event type, service area, capacity (venues and caterers must state one, otherwise Needs confirmation) and required capabilities: each accessibility need for venues, wheelchair access for transport, each dietary need for caterers, a covered alternative for outdoor or mixed settings, plus anything extra the organizer ticks. An explicit "cannot" makes a vendor unsuitable; an unstated capability is Needs confirmation. The organizer's own confirmation overrides the sample data. Ranking is per category: suitable before needs confirmation, fewer unknowns, within the category's budget target, lower illustrative estimate, then name; the summary states each step. Exclusions list their reasons.
+- **Checklists:** availability, quote scope, accessibility (naming the listed needs), dietary capability for caterers or when dietary needs are listed, payment terms and cancellation terms, then the plan's own questions for that kind of vendor and the sample's questions. Ticks are saved as `checksDone` and described as the organizer's checks, not verification.
+- **Budget integration:** recording an agreed quote updates the one expense linked to that vendor, or links the chosen unlinked expense (by default the category's existing estimate, so the cost is not counted twice), or creates one new expense. Repeating it updates the same expense. The deposit is part of the commitment; a paid deposit is one payment with the stable id `<vendorId>~deposit`, replaced on repeat. Accounting rules from stage 5 (deposit and payments within the agreed total) apply.
+- **Guest panel (Overview):** name or alias, group size, reply, optional dietary or access notes; add, edit and remove. No email, phone, birthday or invitations. RSVP counts are shown beside the expected guest count, which stays the forecasting input. "Change the expected guest count" previews a count (from accepted replies, accepted plus no reply, or a typed number) with forecast and headroom before and after; Apply uses the preview's revision; Discard changes nothing. RSVP edits never change the count or the budget.
+- **Schema (version stays 1):** vendors gain optional `sampleId` (unique per event), `serviceArea`, `capacityMax`, `capabilities` and `checksDone`. `CAPABILITIES` lists accessibility needs, dietary needs, `weather-cover` and `power-backup`.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -117,7 +129,32 @@ The Timeline page is now a working checklist for the active event. New pure modu
 - **Stage 6:** the Overview's "Edit event" now regenerates the timeline (tasks only) in the same edit. It still does not rebalance budget targets.
 - **Stage 6:** a `not` condition was added to the configuration language for "no accessibility needs listed".
 
+- **Stage 7:** sample vendors stay in code, not in saved data. Saved vendor records point at them by `sampleId`, so the illustrative facts can never be mistaken for the organizer's own notes, and correcting the sample data needs no migration.
+- **Stage 7:** a capability the organizer records for a vendor (can or cannot) overrides the sample data for that vendor only.
+- **Stage 7:** a user-entered service area that does not mention the event's city is Needs confirmation, not unsuitable, because it is free text ("Pune district" may still cover the venue).
+- **Stage 7:** the agreed quote updates the vendor's latest quote to the agreed total but does not change its selection status; the organizer sets "Booked" themselves.
+- **Stage 7:** changing the expected guest count from the guest panel regenerates the timeline like any event edit, and does not re-share budget targets, matching the Overview edit.
+- **Stage 7:** labels in the guest form are now "Name or alias" and "Group size" (stage 4 tests updated).
+
 ## Verification results (actually run)
+
+### Stage 7
+
+Windows, Node v24.16.0, npm 11.17.0.
+
+| Check                  | Result                                                                   |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `npm run typecheck`    | exit 0                                                                   |
+| `npm run lint`         | exit 0                                                                   |
+| `npm run format:check` | exit 0                                                                   |
+| `npm run test:run`     | 28 files, 440 tests passed (26 new: vendors, guests, page)               |
+| `npm run build`        | OK; JS 616.38 kB (185.11 kB gzip), CSS 27.59 kB; Vite chunk-size warning |
+
+- **Completion check:** adding wheelchair access moves Riverside Lawns from suitable to Needs confirmation (not stated) and adding a step-free route makes it unsuitable (stated "cannot"), while Lotus Courtyard Hall stays suitable (`vendors.test.ts`); unknown capabilities are listed under Needs confirmation on the page; an agreed quote updates the existing "Venue hire" expense, and recording it again leaves one linked expense and one deposit payment with the ledger reconciling (domain and page tests, and in the real browser); adding, editing and changing guest replies leaves the expected count and the forecast unchanged until a previewed count is applied.
+- **Mutation checks:** treating a stated "cannot" as not stated failed 3 tests; keeping the old deposit payment when the quote is recorded again failed 2. Both were reverted.
+- **Real browser** (Claude desktop browser pane, Chromium, dev server): created the demo wedding and its budget, shortlisted Lotus Courtyard Hall, recorded an agreed quote of ₹1,10,000 with a ₹30,000 deposit paid, then ₹1,15,000: one linked "Venue hire" expense, one deposit payment. Previewed 180 expected guests on the Overview (forecast and headroom before and after shown). axe-core 4.10 (WCAG 2.0 to 2.2 A and AA plus best practices): no violations on Vendors with a comparison open or on the Overview with a guest-count preview, at 1280 px and 320 px; no horizontal page scroll at 320 px. One contrast result on the pressed Compare buttons appeared only when axe ran during the button's colour transition; the settled colours (white on navy) pass.
+- **Defect found and fixed:** search matched capabilities a vendor explicitly cannot provide (searching "halal" listed a caterer that cannot); it now matches only stated or confirmed capabilities. Negative headroom in the guest-count preview used a hyphen instead of a minus sign.
+- **Not verified this stage:** Firefox, Safari, a physical phone and a screen reader.
 
 ### Stage 6
 
@@ -196,7 +233,7 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 1. **Show the plan:** generated tasks, ideas and recommendations with reasons on Overview, with an apply button, using the existing engine. (The budget part is done in stage 5.)
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
-3. **Vendors and Ideas pages:** vendors with quotes, commitments, deposits and payments, and ideas. (Timeline is done in stage 6.)
+3. **Ideas page:** save, dismiss and add ideas. (Timeline is done in stage 6, vendors in stage 7.)
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
 5. **WebLLM assistant** in a Web Worker behind `AssistantAdapter`, with session-only chat and proposals going through `previewChanges`.
 6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.

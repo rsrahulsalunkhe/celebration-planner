@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   ACCESSIBILITY_NEEDS,
   AGE_BANDS,
+  CAPABILITIES,
   DEMO_PRESET_IDS,
   DIETARY_NEEDS,
   EVENT_TYPES,
@@ -233,6 +234,23 @@ export const vendorSchema = z.object({
   /** Latest quote; `null` means no quote yet. */
   quotePaise: paiseSchema.nullable(),
   notes: multiLine('Notes', 500).optional(),
+  /** Set when shortlisted from the bundled sample data; facts are read from there. */
+  sampleId: z
+    .string()
+    .regex(/^sample\.[a-z0-9-]{1,60}$/, 'Invalid sample vendor id')
+    .optional(),
+  /** User-entered: where this vendor works, in their words. */
+  serviceArea: singleLine('Service area', 100).optional(),
+  /** User-entered: the most guests they can serve. */
+  capacityMax: boundedInt('Capacity', 1, LIMITS.guestCount * 10).optional(),
+  /**
+   * What the organizer has confirmed this vendor can (`true`) or cannot
+   * (`false`) do. Absent means not known yet. These are the organizer's notes,
+   * not a verification by this app.
+   */
+  capabilities: z.partialRecord(z.enum(CAPABILITIES), z.boolean()).optional(),
+  /** Ids of checklist questions the organizer has ticked off. */
+  checksDone: uniqueArray(z.string().regex(/^[a-z][a-z0-9.-]{0,79}$/), 40).optional(),
 });
 
 export const guestRecordSchema = z.object({
@@ -346,7 +364,7 @@ function checkEventIntegrity(
       vendorId?: string | undefined;
       dependsOn?: string[] | undefined;
     }[];
-    vendors: { id: string }[];
+    vendors: { id: string; sampleId?: string | undefined }[];
     guests: { id: string }[];
     ideas: { id: string; templateId?: string | undefined }[];
     runOrder: { id: string }[];
@@ -373,6 +391,14 @@ function checkEventIntegrity(
   }
   const categoryIds = new Set(record.budgetCategories.map((c) => c.id));
   const vendorIds = new Set(record.vendors.map((v) => v.id));
+  const sampleIds = new Set<string>();
+  record.vendors.forEach((vendor, index) => {
+    if (vendor.sampleId === undefined) return;
+    if (sampleIds.has(vendor.sampleId)) {
+      fail(['vendors', index, 'sampleId'], 'This sample vendor is already listed');
+    }
+    sampleIds.add(vendor.sampleId);
+  });
   record.expenses.forEach((expense, index) => {
     if (!categoryIds.has(expense.categoryId)) {
       fail(['expenses', index, 'categoryId'], 'Unknown budget category');

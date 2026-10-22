@@ -23,7 +23,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, planned: false, end: true },
   { path: '/budget', label: 'Budget', icon: Wallet, planned: false },
   { path: '/timeline', label: 'Timeline', icon: CalendarClock, planned: false },
-  { path: '/vendors', label: 'Vendors', icon: Store, planned: true },
+  { path: '/vendors', label: 'Vendors', icon: Store, planned: false },
   { path: '/assistant', label: 'Assistant', icon: Sparkles, planned: true },
   { path: '/ideas', label: 'Ideas', icon: Lightbulb, planned: true },
 ];

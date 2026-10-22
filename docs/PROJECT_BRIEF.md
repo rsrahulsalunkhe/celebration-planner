@@ -85,6 +85,14 @@ Money rules:
 10. Accounting (`src/domain/planning/budget.ts`): an expense contributes its agreed total when present, otherwise its estimate. Payments are part of a commitment, need one and must not exceed it. Forecast and payments are never added together. The reserve is never an expense. Headroom = budget − reserve − forecast.
 11. A target the user sets is locked (`plannedOrigin: 'user'`) until they press Unlock. Rebalancing moves only unlocked targets, by planning weight, never below required provisions and never below zero. Locked targets that no longer fit are a conflict, never silently unlocked; when every target is locked the excess or unallocated amount is shown instead of being shared.
 12. What-if scenarios (`src/domain/planning/scenarios.ts`: cut the budget, more guests, change the reserve, favour a priority) are previews computed from a copy. Apply uses the preview's revision, so a preview made before another edit is rejected as stale. Scenarios change only the profile and category targets.
+13. An agreed vendor quote updates exactly one linked expense; recording it again updates the same expense and replaces, never adds, its deposit payment.
+14. The expected guest count is the forecasting input. Guest replies are counted separately and change it only through an explicit preview and apply.
+
+Vendor rules:
+
+- Bundled vendors are fictional sample data with illustrative prices, labelled as such, with no ratings, contact details, availability or bookings.
+- Matching checks event type, service area, capacity and required capabilities from the event's stated needs. A stated "cannot" is unsuitable; an unstated capability is Needs confirmation. Ranking criteria are shown with each result, and exclusions give their reasons.
+- Vendor checklists (availability, quote scope, accessibility, dietary where applicable, payment and cancellation terms) are the organizer's checks, not verification. Recording "Booked" never claims a reservation was made.
 
 Date rules:
 

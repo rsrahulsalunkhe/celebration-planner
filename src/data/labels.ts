@@ -7,6 +7,7 @@ import type {
   Setting,
   PlanningTask,
   TaskCategory,
+  VendorStatus,
 } from '@/domain/types.ts';
 import type { Importance, Urgency } from '@/domain/planning/types.ts';
 
@@ -97,4 +98,13 @@ export const URGENCY_LABELS: Record<Urgency, string> = {
   'due-today': 'Due today',
   'due-soon': 'Due within a week',
   upcoming: 'Later',
+};
+
+/** "Booked" is the organizer's own record; nothing is reserved by the app. */
+export const VENDOR_STATUS_LABELS: Record<VendorStatus, string> = {
+  shortlisted: 'Shortlisted',
+  contacted: 'Contacted',
+  quoted: 'Quote received',
+  booked: 'Booked (recorded by you)',
+  declined: 'Not going ahead',
 };

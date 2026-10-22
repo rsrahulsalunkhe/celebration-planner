@@ -82,9 +82,7 @@ describe('the shell', () => {
   it('marks unfinished sections in the navigation instead of hiding that they are unfinished', () => {
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(
-      within(nav).getByRole('link', { name: /^Vendors\s*Soon/ }),
-    ).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: /^Ideas\s*Soon/ })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Budget' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Overview' })).toBeInTheDocument();
   });
@@ -396,16 +394,16 @@ describe('guest planning inside the event', () => {
 
     await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
     expect(within(guests).getByText('Guest name is required')).toBeInTheDocument();
-    expect(within(guests).getByLabelText('Guest or family name')).toHaveFocus();
+    expect(within(guests).getByLabelText('Name or alias')).toHaveFocus();
 
-    await user.type(within(guests).getByLabelText('Guest or family name'), 'Rao family');
-    await user.clear(within(guests).getByLabelText('People in this party'));
-    await user.type(within(guests).getByLabelText('People in this party'), '0');
+    await user.type(within(guests).getByLabelText('Name or alias'), 'Rao family');
+    await user.clear(within(guests).getByLabelText('Group size'));
+    await user.type(within(guests).getByLabelText('Group size'), '0');
     await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
     expect(within(guests).getByText('Party size must be at least 1')).toBeInTheDocument();
 
-    await user.clear(within(guests).getByLabelText('People in this party'));
-    await user.type(within(guests).getByLabelText('People in this party'), '4');
+    await user.clear(within(guests).getByLabelText('Group size'));
+    await user.type(within(guests).getByLabelText('Group size'), '4');
     await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
     expect(within(guests).getByText('Added Rao family.')).toBeInTheDocument();
     expect(counts()).toMatchObject({ 'People listed': '4', 'No reply yet': '4' });
@@ -435,9 +433,9 @@ describe('guest planning inside the event', () => {
       ['Another group', '20'],
       ['Third group', '1'],
     ] as const) {
-      await user.type(within(guests).getByLabelText('Guest or family name'), name);
-      await user.clear(within(guests).getByLabelText('People in this party'));
-      await user.type(within(guests).getByLabelText('People in this party'), size);
+      await user.type(within(guests).getByLabelText('Name or alias'), name);
+      await user.clear(within(guests).getByLabelText('Group size'));
+      await user.type(within(guests).getByLabelText('Group size'), size);
       await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
     }
     expect(
@@ -451,8 +449,6 @@ describe('sections that are not built yet', () => {
     renderApp();
     await createDemo('Wedding');
 
-    await follow(/^Vendors/);
-    expect(screen.getByText('Vendors listed').nextElementSibling).toHaveTextContent('0');
     await follow(/^Ideas/);
     expect(screen.getByText('Ideas saved').nextElementSibling).toHaveTextContent('0');
     await follow(/^Assistant/);

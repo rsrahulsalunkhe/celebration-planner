@@ -21,6 +21,7 @@ import type {
 import type {
   ACCESSIBILITY_NEEDS,
   AGE_BANDS,
+  CAPABILITIES,
   DEMO_PRESET_IDS,
   DIETARY_NEEDS,
   EVENT_TYPES,
@@ -56,6 +57,9 @@ export type Priority = (typeof PRIORITIES)[number];
 export type DietaryNeed = (typeof DIETARY_NEEDS)[number];
 export type AccessibilityNeed = (typeof ACCESSIBILITY_NEEDS)[number];
 export type ValueOrigin = (typeof VALUE_ORIGINS)[number];
+export type Capability = (typeof CAPABILITIES)[number];
+export type VendorKind = Vendor['kind'];
+export type VendorStatus = Vendor['status'];
 export type TaskCategory = (typeof TASK_CATEGORIES)[number];
 export type TaskKind = (typeof TASK_KINDS)[number];
 export type DemoPresetId = (typeof DEMO_PRESET_IDS)[number];
