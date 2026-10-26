@@ -224,7 +224,22 @@ export function MessageView({
             }[response.kind]
           }
         </Badge>
+        {response.generated ? (
+          <Badge tone="gold">AI-written draft · {response.generated.model}</Badge>
+        ) : null}
       </span>
+      {response.generated ? (
+        <div className={styles.generated}>
+          <p>{response.generated.caution}</p>
+          {response.generated.warnings.length > 0 ? (
+            <ul aria-label="Checks on this text">
+              {response.generated.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       {response.kind === 'question' ? (
         <>
@@ -278,13 +293,15 @@ export function MessageView({
         <>
           <h3>{response.title}</h3>
           <p>{response.intro}</p>
-          <ul>
-            {response.items.map((item) => (
-              <li key={item.title}>
-                <strong>{item.title}.</strong> {item.details}
-              </li>
-            ))}
-          </ul>
+          {response.items.length > 0 ? (
+            <ul>
+              {response.items.map((item) => (
+                <li key={item.title}>
+                  <strong>{item.title}.</strong> {item.details}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <p className={styles.muted}>{response.note}</p>
         </>
       ) : null}

@@ -129,7 +129,7 @@ describe('the assistant page', () => {
   it('labels the guided planner honestly and shows supported examples', () => {
     renderAssistant();
     expect(screen.getByText('Guided planner', { selector: 'span' })).toBeInTheDocument();
-    expect(screen.getByText(/It is not a language model/)).toBeInTheDocument();
+    expect(screen.getByText(/it is not a language model/)).toBeInTheDocument();
     const examples = screen.getByRole('list', { name: 'Examples' });
     expect(
       within(examples).getByRole('button', { name: 'Set guests to 120.' }),

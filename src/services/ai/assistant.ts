@@ -122,11 +122,22 @@ export interface ProviderInfo {
   label: string;
 }
 
+/** Present when an AI model wrote the text, rather than the planner's rules or templates. */
+export interface GeneratedBy {
+  by: 'local-model';
+  model: string;
+  /** Plain-language warning shown with the text. */
+  caution: string;
+  /** What the checks changed or noticed. */
+  warnings: string[];
+}
+
 interface ResponseBase {
   requestId: string;
   eventId: string;
   revision: number;
   provider: ProviderInfo;
+  generated?: GeneratedBy;
 }
 
 export interface SuggestedReply {
@@ -173,5 +184,13 @@ export interface AssistantProvider {
   readonly info: ProviderInfo;
   /** Commands it understands, shown to the user. */
   readonly examples: readonly string[];
-  respond(request: AssistantRequest, signal?: AbortSignal): Promise<AssistantResponse>;
+  /**
+   * Answers one request. `onProgress` may receive a short preview while a
+   * model is writing; it is display-only and never announced token by token.
+   */
+  respond(
+    request: AssistantRequest,
+    signal?: AbortSignal,
+    onProgress?: (preview: string) => void,
+  ): Promise<AssistantResponse>;
 }

@@ -388,3 +388,22 @@ describe('provider contract', () => {
     expect(snapshot.vendors).toEqual({ listed: 1, booked: 1 });
   });
 });
+
+describe('template-based invitation wording', () => {
+  it('fills a fixed template with the event’s details and leaves unknowns blank', () => {
+    const record = planned('birthday');
+    const answer = ask('Write invitation wording.', record);
+    expect(answer).toMatchObject({
+      kind: 'draft',
+      title: 'Invitation wording (template)',
+    });
+    if (answer.kind !== 'draft') return;
+    expect(answer.intro).toContain(
+      'You are invited to join us for “Demo birthday party (fictional)”.',
+    );
+    expect(answer.intro).toMatch(/Date: \d{1,2} \w+ \d{4}/);
+    expect(answer.intro).toContain('[RSVP contact]');
+    expect(answer.intro).toContain(`, ${record.profile.city}`);
+    expect(answer.note).toMatch(/fixed template/);
+  });
+});

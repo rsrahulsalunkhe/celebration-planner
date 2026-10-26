@@ -20,6 +20,8 @@ if (!/^(\.\/|\/([\w.-]+\/)*)$/.test(base)) {
 export default defineConfig({
   base,
   plugins: [react()],
+  // The local AI worker is an ES module that imports WebLLM.
+  worker: { format: 'es' },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

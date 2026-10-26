@@ -113,7 +113,7 @@ Assistant rules:
 - A proposed change is a validated intent. The planning engine builds the proposal and its before-and-after preview from the current event, and the user must press Apply change. Apply checks the event and revision again. Payments, deleting events, marking vendors booked and running code are not possible.
 - The built-in `GuidedPlannerProvider` is deterministic and labelled "Guided planner". It never guesses units, asks one focused question when a request is ambiguous or combines changes, and points to the right form for anything it does not support.
 - Conversations are kept per event for the session only and are never saved. Replies for another event or an older revision are discarded.
-- A local model (WebLLM in a Web Worker) may later implement the same interface.
+- Optional local AI (`LocalAIProvider`, `src/services/ai/local`): WebLLM 0.2.85 running Qwen2.5-1.5B-Instruct (Apache-2.0) in a dedicated Web Worker. Nothing is downloaded until the user enables it after a capability check and a download estimate. It only writes ideas, invitation wording and explanations of the planner's own facts; its output is validated, labelled "Local AI", and never becomes a change. Commands and changes always go to the guided planner and the engine. Event data is never sent to a hosted AI service; the model files come from Hugging Face and GitHub.
 
 ## Assumptions
 

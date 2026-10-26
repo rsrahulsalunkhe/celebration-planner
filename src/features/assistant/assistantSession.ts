@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { ProposedChange } from '@/domain/types.ts';
 import type { AssistantProvider, AssistantResponse } from '@/services/ai/assistant.ts';
-import { guidedPlannerProvider } from '@/services/ai/guidedProvider.ts';
 
 /**
  * Conversations live in memory for this browser session only, one per event.
@@ -43,10 +42,13 @@ export function useAssistantSession(): AssistantSession {
   return session;
 }
 
-/** Injected so tests can use a slow or failing provider. */
-export const AssistantProviderContext =
-  createContext<AssistantProvider>(guidedPlannerProvider);
+/**
+ * A fixed provider, injected by tests (slow or failing ones). `null`, the
+ * default, lets the page choose: local AI when it is ready and switched on,
+ * otherwise the guided planner.
+ */
+export const AssistantProviderContext = createContext<AssistantProvider | null>(null);
 
-export function useAssistantProvider(): AssistantProvider {
+export function useInjectedProvider(): AssistantProvider | null {
   return useContext(AssistantProviderContext);
 }

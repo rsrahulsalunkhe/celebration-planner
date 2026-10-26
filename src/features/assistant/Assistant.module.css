@@ -204,3 +204,12 @@
 .jump {
   align-self: center;
 }
+
+.generated {
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--gold-400);
+  background: var(--gold-soft);
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  white-space: normal;
+}

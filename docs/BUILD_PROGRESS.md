@@ -92,6 +92,29 @@ The Assistant page is now a working, rule-based assistant. New modules in `src/s
 - **Proposals:** built by the planning engine (`previewChanges`) from the event as it is when the reply arrives. Consequences are added only for parts of the plan the event already has, so a change never quietly creates a budget, timeline or idea list. Each shows field changes, a before-and-after table (budget, reserve, forecast, over the whole budget, into the reserve), changed costs, timeline changes and new or resolved problems, with Apply change and Dismiss. The preview is recomputed on every render; once the event changes, the proposal says so and offers "Ask again with the current event". Apply checks the active event, the revision, validity and the operation guard again, then edits through the reducer with the expected revision.
 - **Experience:** one conversation per event in memory for the session (at most 40 messages; never saved or exported), example chips when empty, suggestion chips, a working state with Cancel, an error state with Ask again, Enter to send and Shift+Enter for a new line, focus kept in the message box, completion announced once in a polite status region (the message list itself is not live), and automatic scrolling only for someone already at the end (otherwise a "New reply below" button). Leaving the event cancels the request; a reply for a cancelled or replaced request, another event, or an older revision is discarded with a note. All text is rendered as React text.
 
+### Stage 9: Local AI (WebLLM)
+
+An optional on-device model now runs beside the guided planner. New modules in `src/services/ai/local`: `model.ts` (the model record), `capability.ts` (browser and GPU check), `worker.ts` (dedicated worker), `localModel.ts` (`LocalModelController`, the one engine and its lifecycle), `prompts.ts` (bounded prompts and checks on output) and `localProvider.ts` (`LocalAIProvider`). UI: `LocalAICard`, `LocalModelSession` and `localModelContext` in `src/features/assistant`.
+
+**Model record**
+
+| Item           | Value                                                                                                                                                                                                                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDK            | `@mlc-ai/web-llm` **0.2.85**, pinned exactly (0.2.86 was 11 days old, so the previous release was chosen)                                                                                                                                                                                                   |
+| Model ID       | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC`; `Qwen2.5-1.5B-Instruct-q4f32_1-MLC` on GPUs without `shader-f16`. Both are in the SDK's `prebuiltAppConfig` (a test checks this)                                                                                                                                       |
+| Source         | https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC (MLC conversion of https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct); model library from raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs (`v0_2_84/base/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm`)                                |
+| License        | Apache-2.0 (base model card and LICENSE file). The MLC repository is a format conversion with no separate license. Weights are not redistributed: the browser downloads them from the source                                                                                                                |
+| Size           | Measured 2026-10-22: repository 839.5 MiB (39 files), weights 828.3 MiB in 30 shards, model library 5.0 MiB. At run time the app sums the model's own `ndarray-cache.json` and shows that figure, or says the size could not be checked                                                                     |
+| Memory         | The SDK lists 1,629.75 MB of VRAM at a 4,096-token window; the app uses a 2,048-token window                                                                                                                                                                                                                |
+| Why this model | Small enough for integrated GPUs (flagged low-resource by the SDK), better instruction following and JSON output than 0.5B-class models, and a permissive license. Llama 3.2 1B (community license) and Gemma (Gemma terms) were not chosen because of their license terms; Qwen2.5 0.5B because of quality |
+
+- **Loading:** nothing is fetched on page load. "Enable local AI" checks secure context, Web Worker, WebGPU, an adapter, `shader-f16` (to choose the build), reported device memory and storage quota, then imports the SDK and shows the verified size, the hosts (huggingface.co and raw.githubusercontent.com), the license and any warnings. Only "Download and start" (or "Load the model" when `hasModelInCache` says it is cached) creates the worker and calls `CreateWebWorkerMLCEngine`. The SDK and the worker are separate build chunks (about 6 MB each), not part of the first page load.
+- **Lifecycle:** idle, capability-check, unsupported, ready-to-download, downloading (real progress from the SDK), ready, generating (with "stopping"), stopped and error. Stop during a download ends the worker (the SDK cannot interrupt a reload) and says so; Stop during generation calls `interruptGenerate()`; Turn off calls `unload()` and then ends the worker. One engine, one generation at a time; a stale result after a stop is ignored. Load failures and a lost device become an error with Try again; nothing retries by itself.
+- **What the model does:** personalised theme and activity ideas (JSON constrained by a schema through `response_format`, then validated with Zod, dietary conflicts and prices removed), invitation wording (invented links, emails and phone numbers replaced; a warning when the date is missing) and plain-language explanations built only from the guided planner's own answers (any amount, percentage, multi-digit number or date not in those facts discards the explanation). Commands, questions and proposals always go to the guided planner and the engine. Model output is labelled "Local AI" with an "AI-written draft" badge and a caution; fallbacks are labelled "Guided planner" and say why.
+- **Template fallback:** the guided planner now has a fixed invitation template ("Write invitation wording.") so the template and the model's wording are visibly different.
+- **Bounds:** prompts are cut to 3,500 characters; output to 450, 260 and 320 tokens for ideas, invitations and explanations.
+- **Privacy:** event data never leaves the browser. The snapshot sent to the model leaves out guest names, notes and contact details. Third-party hosts serve the model files and see the download request, not the event.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -153,7 +176,48 @@ The Assistant page is now a working, rule-based assistant. New modules in `src/s
 - **Stage 8:** conversations are held by `AssistantSessionProvider` around the routes, so leaving the Assistant page keeps them for the session; reloading clears them.
 - **Stage 8:** Vitest's per-test timeout is 20 s. Page tests that type into many fields passed alone but went over 5 s under a full parallel run.
 
+- **Stage 9:** the local model never proposes changes. It writes drafts only; the guided planner and the engine keep every number, deadline and change, so there is nothing for a model to get wrong that could be applied.
+- **Stage 9:** WebLLM 0.2.85 clears its interrupt flag when a generation starts and cannot interrupt prompt processing, so an interrupt sent before the first token was lost (seen in the real browser, then confirmed in the SDK source). The controller now sends the interrupt again when streaming begins, and the card shows "Stopping" until the engine has finished. The first schema-constrained request after loading spends about 25 s preparing its grammar, which cannot be interrupted; later ones stop in about a second.
+- **Stage 9:** the grounding check compares figures and dates, not meaning. In the real run an explanation used the correct ₹580 per-guest figure but called it "food and drink"; the caution on every Local AI answer covers this, and the planner's own figures are shown beside it.
+- **Stage 9:** the controller lives above the routes for the session, so leaving the Assistant page keeps the model loaded; reloading the page starts over (the files stay cached). Whether local AI was enabled is not saved, so a reload never starts a download by itself.
+- **Stage 9:** `.claude/launch.json` (local preview config, not committed) uses port 5183 with `--strictPort`: the browser caches the model per origin, and another project already used 5173.
+
 ## Verification results (actually run)
+
+### Stage 9
+
+Windows 11, Node v24.16.0, npm 11.17.0.
+
+| Check                  | Result                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`    | exit 0                                                                                                                          |
+| `npm run lint`         | exit 0                                                                                                                          |
+| `npm run format:check` | exit 0                                                                                                                          |
+| `npm run test:run`     | 32 files, 512 tests passed (36 new: capability, lifecycle, validation, provider, page, template)                                |
+| `npm run build`        | OK; main JS 684.79 kB (206.22 kB gzip), CSS 30.93 kB; SDK chunk 6,038.37 kB and worker chunk 6,025.48 kB load only after Enable |
+
+The unit and page tests use a fake SDK and engine. They check the lifecycle, routing and validation; they do **not** show that inference works. Real inference was checked in a browser:
+
+**Device and browser:** the Claude desktop app's built-in browser (Chromium 152.0.7977.167) on Windows, Intel Gen12LP integrated graphics (adapter vendor "intel", architecture "gen-12lp"), `shader-f16` supported, maxBufferSize 2 GiB, about 6.5 GB of browser storage quota. Dev server at http://localhost:5183.
+
+| Step                                 | Result                                                                                                                                                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page load                            | No SDK, worker or model request                                                                                                                                                                            |
+| Enable local AI                      | SDK imported; one request for `ndarray-cache.json`; "Download: about 869 MB of model weights (from the model’s own file list)"; graphics and storage shown                                                 |
+| First download and load              | Real progress from the SDK (e.g. "Fetching param cache[6/30]: 151MB fetched. 18%"); ready after 86 s                                                                                                       |
+| Load from cache (later)              | "already in this browser’s storage"; ready after 7 to 8 s                                                                                                                                                  |
+| Invitation wording                   | 58.5 s, about 120 words; used the real title, city and date (24 January 2027); placeholders for RSVP details; labelled "AI-written draft"; announced once ("Local AI replied.")                            |
+| Theme ideas (JSON)                   | 29.5 s; valid JSON, 3 ideas, all passed the checks. Quality was generic: "Spring Blossom" for a January wedding and "Ocean's Edge" for an indoor event in Pune                                             |
+| Budget explanation                   | 24.5 s; every figure matched the planner (₹5,00,000, ₹50,000, ₹4,39,000, ₹11,000, ₹580); it called the ₹580 per-guest total "food and drink", which is wrong                                               |
+| Plan explanation                     | 26 s after several stops; grounded in the timeline facts                                                                                                                                                   |
+| "Set guests to 120" with local AI on | About 1 s, answered by the guided planner with an engine preview and Apply change; no model call                                                                                                           |
+| Stop mid-answer                      | Ready again 397 ms after Stop                                                                                                                                                                              |
+| Stop before the first token          | Before the fix: the engine ran on for 32 s. After the fix: plain text 667 ms; ideas 1,084 ms; the very first JSON request after loading about 26 s (grammar preparation), with "Stopping" shown throughout |
+| Turn off local AI                    | "The model was unloaded from memory"; later requests answered by the guided planner (with the new template for invitations)                                                                                |
+| Accessibility                        | axe-core 4.10: no violations with the card stopped and ready to load                                                                                                                                       |
+| Console                              | No errors                                                                                                                                                                                                  |
+
+- **Not verified:** an unsupported browser (only covered by tests with a fake environment; the guided planner path itself was verified with local AI off), a discrete GPU, a phone, Firefox and Safari, a real device-lost event, the q4f32 build, and output quality beyond the runs above. The first download used the earlier origin http://localhost:5173 and had to be repeated at :5183 after another project took that port; the copy cached under :5173 is still in the built-in browser's storage.
 
 ### Stage 8
 
@@ -270,7 +334,7 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
 3. **Ideas page:** save, dismiss and add ideas. (Timeline is done in stage 6, vendors in stage 7.)
 4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
-5. **Optional local model:** a WebLLM provider in a Web Worker implementing `AssistantProvider` and returning the same validated intents. (The guided planner, contract and proposal flow are done in stage 8.)
+5. **Local model follow-ups:** a "Remove downloaded model" action (`deleteModelAllInfoInCache`) so the about 870 MB can be freed from the app, and checks on a discrete GPU and on phones. (The guided planner is done in stage 8, local AI in stage 9.)
 6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
 7. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
 8. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.

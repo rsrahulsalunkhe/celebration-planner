@@ -2,6 +2,7 @@ import { Send, Trash2, X } from 'lucide-react';
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -26,13 +27,17 @@ import { previewChanges } from '@/domain/planning/preview.ts';
 import type { EventRecord } from '@/domain/types.ts';
 import { MAX_MESSAGE_CHARS } from '@/services/ai/assistant.ts';
 import { buildContextSnapshot } from '@/services/ai/context.ts';
+import { guidedPlannerProvider } from '@/services/ai/guidedProvider.ts';
+import { LocalAIProvider } from '@/services/ai/local/localProvider.ts';
 import { checkBeforeApply, proposalFromIntent } from '@/services/ai/proposals.ts';
 import styles from './Assistant.module.css';
 import {
-  useAssistantProvider,
   useAssistantSession,
+  useInjectedProvider,
   type ChatMessage,
 } from './assistantSession.ts';
+import { LocalAICard } from './LocalAICard.tsx';
+import { useLocalModel } from './localModelContext.ts';
 import { Chips, MessageView } from './MessageView.tsx';
 
 const CONFIG = PLANNING_CONFIGURATION;
@@ -57,7 +62,18 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
   const state = usePlannerState();
   const dispatch = usePlannerDispatch();
   const today = useCalendar().today();
-  const provider = useAssistantProvider();
+  const injected = useInjectedProvider();
+  const local = useLocalModel();
+  const [useLocal, setUseLocal] = useState(true);
+  const localProvider = useMemo(
+    () => new LocalAIProvider(local.controller),
+    [local.controller],
+  );
+  const localReady = local.status.kind === 'ready' || local.status.kind === 'generating';
+  // The guided planner is always available; local AI is used only when ready and switched on.
+  const provider =
+    injected ?? (localReady && useLocal ? localProvider : guidedPlannerProvider);
+  const [progress, setProgress] = useState('');
   const session = useAssistantSession();
   const messages = session.messagesFor(eventId);
 
@@ -104,6 +120,7 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
   const finish = () => {
     pendingRef.current = null;
     setPending(null);
+    setProgress('');
   };
 
   const send = (raw: string) => {
@@ -141,7 +158,10 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
     setAnnouncement(`${provider.info.label} is working on it.`);
 
     provider
-      .respond(request, next.controller.signal)
+      .respond(request, next.controller.signal, (preview) => {
+        // Shown in the working message only; never announced token by token.
+        if (pendingRef.current?.requestId === request.requestId) setProgress(preview);
+      })
       .then((response) => {
         // Ignore replies to requests that were cancelled or replaced.
         if (pendingRef.current?.requestId !== response.requestId) return;
@@ -288,13 +308,20 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
         description={`For ${event.profile.title}. Ask about this event or propose a change. Nothing changes until you press Apply change.`}
       />
       <Stack>
-        <Card title="About the guided planner">
+        <Card title="About the assistant">
           <div className={styles.intro}>
             <p>
-              The {provider.info.label.toLowerCase()} follows a fixed set of commands and
-              answers from this event’s details using the planner’s own rules. It is not a
-              language model and does not understand open-ended requests. It cannot change
-              payments, delete events, mark vendors booked or run code.
+              The guided planner is always here. It follows a fixed set of commands and
+              answers from this event’s details using the planner’s own rules; it is not a
+              language model and does not understand open-ended requests. Answers it gives
+              are labelled “Guided planner”.
+            </p>
+            <p>
+              Optional local AI can also write ideas, invitation wording and explanations.
+              Its answers are labelled “Local AI” and are unchecked drafts. Costs, totals,
+              deadlines and changes always come from the planner, and nothing changes
+              until you press Apply change. Neither can change payments, delete events,
+              mark vendors booked or run code.
             </p>
             <p className={styles.muted}>
               This conversation is kept only while this tab is open, separately for each
@@ -302,6 +329,8 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
             </p>
           </div>
         </Card>
+
+        <LocalAICard useLocal={useLocal} onUseLocalChange={setUseLocal} />
 
         <Card
           title="Conversation"
@@ -363,7 +392,7 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
                 {pending ? (
                   <li className={styles.message} data-role="notice">
                     <span className={styles.working}>
-                      {provider.info.label} is working on it…
+                      {progress || `${provider.info.label} is working on it…`}
                     </span>
                   </li>
                 ) : null}
@@ -414,7 +443,9 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
                   icon={<X aria-hidden size={18} />}
                   onClick={cancel}
                 >
-                  Cancel
+                  {local.status.kind === 'generating' && provider === localProvider
+                    ? 'Stop'
+                    : 'Cancel'}
                 </Button>
               ) : (
                 <Button type="submit" icon={<Send aria-hidden size={18} />}>

@@ -37,6 +37,7 @@ export const GUIDED_EXAMPLES = [
   'What changes if we move outdoors?',
   'Suggest vegetarian birthday ideas.',
   'Set the reserve to 12%.',
+  'Write invitation wording.',
 ] as const;
 
 type Answer = DistributiveOmit<
@@ -543,6 +544,37 @@ function ideas(lower: string, ctx: ContextSnapshot): Answer {
   };
 }
 
+const OPENINGS: Record<EventType, (title: string) => string> = {
+  wedding: (title) =>
+    `Together with our families, we warmly invite you to celebrate ${title}.`,
+  birthday: (title) => `You are invited to join us for ${title}.`,
+  community: (title) => `Everyone is welcome at ${title}.`,
+};
+
+/**
+ * Invitation wording from a fixed template, filled in with the event's own
+ * details. Anything the planner does not know is left as a bracketed blank.
+ */
+function invitationTemplate(ctx: ContextSnapshot): Answer {
+  const e = ctx.event;
+  const text = [
+    OPENINGS[e.eventType](`“${e.title}”`),
+    '',
+    `Date: ${formatDate(e.date)}`,
+    `Time: [add the time]`,
+    `Place: [add the venue name and address], ${e.city}`,
+    '',
+    'Please let [RSVP contact] know by [RSVP date] whether you can come. If you have dietary or access needs, tell us when you reply.',
+  ].join('\n');
+  return {
+    kind: 'draft',
+    title: 'Invitation wording (template)',
+    intro: text,
+    items: [],
+    note: 'Filled in from a fixed template with this event’s details. Edit it freely; nothing is sent from this app.',
+  };
+}
+
 function help(): Answer {
   return info(
     'What the guided planner can do',
@@ -606,6 +638,12 @@ export function guidedAnswer(message: string, ctx: ContextSnapshot): Answer {
     };
   }
 
+  if (
+    /\binvitations?\b/.test(lower) &&
+    /\b(?:write|draft|wording|words|text|message)\b/.test(lower)
+  ) {
+    return invitationTemplate(ctx);
+  }
   for (const rule of UNSUPPORTED) {
     if (rule.test.test(lower)) {
       return info(rule.title, [rule.text], { links: [rule.link] });
