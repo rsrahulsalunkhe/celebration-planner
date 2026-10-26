@@ -115,6 +115,18 @@ An optional on-device model now runs beside the guided planner. New modules in `
 - **Bounds:** prompts are cut to 3,500 characters; output to 450, 260 and 320 tokens for ideas, invitations and explanations.
 - **Privacy:** event data never leaves the browser. The snapshot sent to the model leaves out guest names, notes and contact details. Third-party hosts serve the model files and see the download request, not the event.
 
+### Stage 10: Ideas, export, import and printing
+
+- **Ideas workspace:** every bundled idea now carries facets (`IdeaFacets`: effort, lead days, budget level, settings, age bands, diets it suits, accessibility needs it helps or suits poorly, priorities, an optional expense template for its cost, a one-task plan and a reason). The configuration check rejects bad facets. `src/domain/planning/ideas.ts` filters by event type, time left before the event, cost level, indoor/outdoor setting, age band, dietary needs, accessibility needs and chosen priorities, and ranks what is left. Every shown suggestion lists why it fits; every hidden one says why (in a closed "Not shown" list). Twelve new ideas were added so each filter has something to act on.
+- **Cost bands:** a suggestion shows a cost only when its facet names an expense template of the same event type, and then quotes that template's illustrative estimate with "Nothing is added to your budget". Otherwise it says there is no estimate. Saving an idea or adding it as a task never changes the budget.
+- **Sources:** each saved idea shows "Guided suggestion", "Local AI draft" or "User idea". Local AI idea drafts on the Assistant page now have "Save to Ideas"; a saved draft keeps a note that it is an unchecked AI draft. Organizers can add their own ideas.
+- **Favourites and tasks:** ideas can be favourited, and "Add as a task" creates exactly one task with the stable id `<idea id>~task` (suggestions themselves have stable ids from their template). Adding again, or adding a suggestion whose task exists, says it is already on the timeline and adds nothing. Assistant proposals no longer add or remove ideas.
+- **Plan export (JSON):** Your data has "Export plan (JSON)" for the open event: `{ format: "celebration-planner/event", version: 1, exportedAt, guestsIncluded, event }` with the profile, preferences, budget categories, expenses and payments, tasks, vendors, ideas, guests (optional, on by default) and running order. Local AI state is never included. The assistant conversation is included only when its checkbox is ticked, as plain text for reading, and is never imported back. "Export all events" still writes the full saved-data envelope. Downloads use a Blob URL, which is released a second after the click; a refused download shows an error instead of claiming success.
+- **Import:** files over 1 MB are refused before reading. The text is parsed in a try block; non-objects, other formats and other versions are refused (a newer version says so). The event is rebuilt by the Zod schemas, which construct new objects with only approved fields (unknown keys and `__proto__` are dropped) and check whole-paise money, real dates, references and collection limits; up to six problems are listed with their paths. Nothing changes until the preview is confirmed. "Import as a copy" gives the event and everything in it new ids (template items keep template-derived ids under the new event, idea tasks keep their `~task` link, deposits keep `<vendor>~deposit`) and adds "(copy)" if the title is taken. "Replace" appears only for a one-event file whose id matches an event here, and only acts after a confirmation dialog; the reducer also checks the revision. Full backups import as copies.
+- **Printable plan:** `/print` shows the summary, assumptions (guest count, reserve, preferences, the rates disclosure), budget by category and by line, the checklist by phase with ☐/☑, vendor confirmations with the organizer's ticked questions, chosen ideas (favourites and ideas on the checklist) and the running order. "Print or save as PDF" opens the browser's print dialog; no PDF library is used. In print, the sidebar, skip link, storage notice and buttons are hidden, tables become full-width wrapping tables with repeated headers, and rows, checklist items and groups do not split across pages.
+- **First use and recovery:** the welcome screen offers "Import a plan file". After clearing unreadable saved data, the message points to importing a plan file. Recovery downloads report a refused download. Import errors say that saved plans have not changed.
+- **Removed:** the stale "Plan, budget targets and recommendations — Not built yet" card on Overview and the unused `ComingSoon` component. No section is marked "Soon" any more.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -182,7 +194,36 @@ An optional on-device model now runs beside the guided planner. New modules in `
 - **Stage 9:** the controller lives above the routes for the session, so leaving the Assistant page keeps the model loaded; reloading the page starts over (the files stay cached). Whether local AI was enabled is not saved, so a reload never starts a download by itself.
 - **Stage 9:** `.claude/launch.json` (local preview config, not committed) uses port 5183 with `--strictPort`: the browser caches the model per origin, and another project already used 5173.
 
+- **Stage 10:** a copy always gets new ids, even when nothing here has the same id. That makes "Import as a copy" one predictable action, and an id can never decide by itself whether data is overwritten.
+- **Stage 10:** replacing keeps the existing event's place and raises its revision above the current one, so any assistant proposal shown for the old version is stale.
+- **Stage 10:** a "chosen idea" in print is a favourite or an idea on the checklist; other saved ideas are counted but not printed.
+- **Stage 10:** money in imported files must be whole paise numbers; text such as "₹5,00,000" or fractions are refused rather than converted, so an import can never change an amount by guessing.
+
 ## Verification results (actually run)
+
+### Stage 10
+
+Windows 11, Node v24.16.0.
+
+| Check                  | Result                                                                                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`    | exit 0                                                                                                                                                                     |
+| `npm run lint`         | exit 0                                                                                                                                                                     |
+| `npm run format:check` | exit 0                                                                                                                                                                     |
+| `npm run test:run`     | 34 files, 544 tests passed (32 new: idea filters, cost grounding and one linked task; export/import round trip, copies, rejected files, reducer replace guard; page flows) |
+| `npm run build`        | OK; main JS 732.10 kB (219.13 kB gzip), CSS 35.85 kB                                                                                                                       |
+
+In the built-in browser (dev server, http://localhost:5183) with the demo wedding:
+
+| Step                                         | Result                                                                                                                                                    |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add a suggestion as a task, twice            | First: "Added the task … No cost was added to the budget." Second: "… is already on the timeline, so nothing was added."                                  |
+| Import a file with bad money                 | Refused with the field paths listed; saved data byte-for-byte unchanged                                                                                   |
+| Import a valid plan file                     | Preview with "Import as a copy", "Replace …" (behind a dialog) and Cancel; saved data unchanged until confirmed                                           |
+| Import as a copy                             | Two events; the copy is open; no id shared with the original; idea task link and agreed amounts kept                                                      |
+| Print layout (print rules applied at 720 px) | Sidebar, skip link and buttons hidden; both budget tables render as tables at full width with repeated headers; no element clipped or wider than the page |
+
+- **Not verified:** a real print preview or saved PDF (the browser pane was hidden, so the print CSS was checked by applying its rules and measuring); axe this stage (loading it from a CDN into the page was not permitted in this session); Firefox, Safari and phones.
 
 ### Stage 9
 
@@ -332,9 +373,8 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 1. **Show the plan:** generated tasks, ideas and recommendations with reasons on Overview, with an apply button, using the existing engine. (The budget part is done in stage 5.)
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
-3. **Ideas page:** save, dismiss and add ideas. (Timeline is done in stage 6, vendors in stage 7.)
-4. **Export:** a readable (print or Markdown) export beside JSON, and JSON import with validation.
-5. **Local model follow-ups:** a "Remove downloaded model" action (`deleteModelAllInfoInCache`) so the about 870 MB can be freed from the app, and checks on a discrete GPU and on phones. (The guided planner is done in stage 8, local AI in stage 9.)
-6. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
-7. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
-8. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.
+3. **Print checks:** look at a real print preview and saved PDF in Chromium and Firefox, and run axe on Ideas, Your data and the printable plan. (Ideas, export, import and printing are done in stage 10.)
+4. **Local model follow-ups:** a "Remove downloaded model" action (`deleteModelAllInfoInCache`) so the about 870 MB can be freed from the app, and checks on a discrete GPU and on phones. (The guided planner is done in stage 8, local AI in stage 9.)
+5. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
+6. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
+7. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.

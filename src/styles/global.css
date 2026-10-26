@@ -81,3 +81,20 @@ a:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* Paper: no app frame, no controls, black on white, and page margins from the browser. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  @page {
+    margin: 14mm 12mm;
+  }
+}

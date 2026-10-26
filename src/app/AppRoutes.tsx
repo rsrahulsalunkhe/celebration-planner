@@ -7,6 +7,7 @@ import { DataPage } from '@/features/data/DataPage.tsx';
 import { NewEventPage } from '@/features/events/NewEventPage.tsx';
 import { IdeasPage } from '@/features/ideas/IdeasPage.tsx';
 import { OverviewPage } from '@/features/overview/OverviewPage.tsx';
+import { PrintPage } from '@/features/print/PrintPage.tsx';
 import { TimelinePage } from '@/features/timeline/TimelinePage.tsx';
 import { VendorsPage } from '@/features/vendors/VendorsPage.tsx';
 import { AppShell } from './AppShell.tsx';
@@ -27,6 +28,7 @@ export function AppRoutes() {
             <Route path="assistant" element={<AssistantPage />} />
             <Route path="ideas" element={<IdeasPage />} />
             <Route path="data" element={<DataPage />} />
+            <Route path="print" element={<PrintPage />} />
             {/* The stage 1 address for the events page. */}
             <Route path="events" element={<Navigate to="/" replace />} />
             <Route path="*" element={<NotFoundPage />} />

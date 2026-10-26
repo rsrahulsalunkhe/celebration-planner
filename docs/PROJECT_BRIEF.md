@@ -55,7 +55,7 @@ Key design rules:
 
 ### Interface
 
-- **Information architecture:** Overview (event details, preferences and guest planning), Budget, Timeline, Vendors, Assistant, Ideas, plus New event and Your data. Guest planning is a card inside Overview, not a top-level section. An event switcher in the sidebar chooses the active event.
+- **Information architecture:** Overview (event details, preferences and guest planning), Budget, Timeline, Vendors, Assistant, Ideas, plus New event and Your data. Guest planning is a card inside Overview, not a top-level section. An event switcher in the sidebar chooses the active event. A printable plan (`/print`) is reached from Overview and Your data; Your data also exports one event as a versioned plan file and imports plan files through a preview.
 - **Routes (HashRouter):** `/` Overview, `/new`, `/budget`, `/timeline`, `/vendors`, `/assistant`, `/ideas`, `/data`; `/events` redirects to `/`; any other address shows a Page not found screen inside the shell.
 - **Layout:** a navy sidebar with warm light surfaces and restrained gold and coral accents (`src/styles/tokens.css`), light only, system fonts, no images beyond a small SVG icon. Below 62rem the sidebar becomes a sticky bar showing the brand, the active event title and a labelled Menu button that opens the navigation beneath it.
 - **Honesty:** sections that are not built say so ("Soon" in the menu, a "Not built yet" card on the page) and show only figures computed from the active event. There are no placeholder totals, fake controls or invented notifications. Status messages appear only for real outcomes.

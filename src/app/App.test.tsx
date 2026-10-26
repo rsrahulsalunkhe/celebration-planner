@@ -79,10 +79,11 @@ describe('the shell', () => {
     expect(h1('Welcome')).toBeInTheDocument();
   });
 
-  it('marks unfinished sections in the navigation instead of hiding that they are unfinished', () => {
+  it('shows every section as built, with nothing marked as coming soon', () => {
     renderApp();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: /^Ideas\s*Soon/ })).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: 'Ideas' })).toBeInTheDocument();
+    expect(within(nav).queryByText('Soon')).not.toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Budget' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Overview' })).toBeInTheDocument();
   });
@@ -444,16 +445,7 @@ describe('guest planning inside the event', () => {
   });
 });
 
-describe('sections that are not built yet', () => {
-  it('shows only real figures from the event and says plainly what is missing', async () => {
-    renderApp();
-    await createDemo('Wedding');
-
-    await follow(/^Ideas/);
-    expect(screen.getByText('Ideas saved').nextElementSibling).toHaveTextContent('0');
-    expect(screen.getByText('Not built yet')).toBeInTheDocument();
-  });
-
+describe('sections without an event', () => {
   it('does not invent totals when there is no event', () => {
     renderApp({ path: '/budget' });
     expect(h1('Budget')).toBeInTheDocument();
@@ -508,7 +500,7 @@ describe('recovery from invalid or unavailable storage', () => {
     expect(storage.data.get('some-other-app:key')).toBe('keep me');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(
-      screen.getByText('Saved data cleared. You can start again.'),
+      screen.getByText(/^Saved data cleared\. Start a new event, or import a plan file/),
     ).toBeInTheDocument();
     expect(h1('Welcome')).toBeInTheDocument();
 
@@ -598,5 +590,141 @@ describe('data page', () => {
 
     await follow('Overview');
     expect(h1('Welcome')).toBeInTheDocument();
+  });
+});
+
+describe('ideas, printing, export and import (stage 10 completion checks)', () => {
+  let createObjectURL: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    createObjectURL = vi.fn(() => 'blob:test');
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('adds a saved idea as exactly one linked task, never touches the budget, and prints it as chosen', async () => {
+    const storage = new MemoryStorage();
+    renderApp({ storage });
+    await createDemo('Wedding');
+    const before = savedState(storage)?.events[0];
+    if (!before) throw new Error('no saved event');
+
+    await follow(/^Ideas/);
+    const [add] = screen.getAllByRole('button', { name: /^Add “.+” as a task$/ });
+    if (!add) throw new Error('no suggestion to add');
+    const name = add.getAttribute('aria-label') ?? '';
+    const title = /“(.+)”/.exec(name)?.[1] ?? '';
+    await userEvent.click(add);
+    expect(
+      screen.getByText(/^Added the task .*No cost was added to the budget\.$/),
+    ).toBeInTheDocument();
+
+    await click(name);
+    expect(
+      screen.getByText(/is already on the timeline, so nothing was added/),
+    ).toBeInTheDocument();
+
+    const after = savedState(storage)?.events[0];
+    expect(after?.tasks).toHaveLength(before.tasks.length + 1);
+    expect(after?.expenses).toEqual(before.expenses);
+    expect(after?.profile.budgetPaise).toBe(before.profile.budgetPaise);
+    const idea = after?.ideas.find((i) => i.title === title);
+    expect(idea?.taskId).toBe(`${idea?.id ?? ''}~task`);
+    expect(after?.tasks.filter((t) => t.id === idea?.taskId)).toHaveLength(1);
+
+    await follow('Your data');
+    await follow('Printable plan');
+    expect(h1('Demo wedding (fictional)')).toBeInTheDocument();
+    for (const section of [
+      'Summary',
+      'Assumptions',
+      'Budget',
+      'Checklist',
+      'Vendor confirmations',
+      'Chosen ideas',
+      'Running order',
+    ]) {
+      expect(
+        screen.getByRole('heading', { level: 2, name: section }),
+      ).toBeInTheDocument();
+    }
+    const chosen = screen.getByRole('heading', {
+      level: 2,
+      name: 'Chosen ideas',
+    }).parentElement;
+    if (!chosen) throw new Error('no chosen ideas section');
+    expect(within(chosen).getByText(title)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Print or save as PDF' }).closest('.no-print'),
+    ).not.toBeNull();
+  });
+
+  it('refuses a bad file without changing anything, previews a good one, and imports a copy or replaces only on confirmation', async () => {
+    const storage = new MemoryStorage();
+    renderApp({ storage });
+    await createDemo('Birthday');
+    await follow('Your data');
+
+    await click('Export plan (JSON)');
+    const blob = createObjectURL.mock.calls[0]?.[0] as Blob;
+    const exported = await blob.text();
+    expect(JSON.parse(exported)).toMatchObject({
+      format: 'celebration-planner/event',
+      version: 1,
+    });
+    expect(screen.getByText(/^Downloaded .*-plan\.json\.$/)).toBeInTheDocument();
+
+    const before = JSON.stringify(savedState(storage));
+    const input = screen.getByLabelText(/Plan file/);
+    await userEvent.upload(
+      input,
+      new File(['{ not json'], 'broken.json', { type: 'application/json' }),
+    );
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText(/This file is not valid JSON/)).toBeInTheDocument();
+    expect(
+      within(alert).getByText(/Your saved plans have not changed/),
+    ).toBeInTheDocument();
+    expect(JSON.stringify(savedState(storage))).toBe(before);
+
+    const plan = new File([exported], 'birthday.json', { type: 'application/json' });
+    await userEvent.upload(input, plan);
+    expect(
+      await screen.findByRole('heading', { name: 'Preview of birthday.json' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/is already here/)).toBeInTheDocument();
+    // A matching id offers a replacement, but only behind a confirmation.
+    await click(/^Replace “/);
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(JSON.stringify(savedState(storage))).toBe(before);
+
+    await click('Import as a copy');
+    expect(screen.getByText(/^Imported “.+” as a new event/)).toBeInTheDocument();
+    const imported = savedState(storage);
+    expect(imported?.events).toHaveLength(2);
+    const [original, copy] = imported?.events ?? [];
+    expect(copy?.profile.id).not.toBe(original?.profile.id);
+    expect(copy?.profile.title).toBe(`${original?.profile.title ?? ''} (copy)`);
+    expect(copy?.tasks.map((t) => t.title)).toEqual(original?.tasks.map((t) => t.title));
+    expect(imported?.activeEventId).toBe(copy?.profile.id);
+
+    await userEvent.upload(input, plan);
+    await screen.findByRole('heading', { name: 'Preview of birthday.json' });
+    await click(/^Replace “/);
+    await click('Yes, replace it');
+    expect(
+      screen.getByText(/^Replaced “.+” with the imported plan\.$/),
+    ).toBeInTheDocument();
+    const replaced = savedState(storage);
+    expect(replaced?.events).toHaveLength(2);
+    expect(replaced?.events[0]?.profile.revision).toBe(
+      (original?.profile.revision ?? 0) + 1,
+    );
   });
 });

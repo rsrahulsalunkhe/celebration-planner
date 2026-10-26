@@ -276,6 +276,12 @@ export const ideaSchema = z.object({
     .optional(),
   status: z.enum(IDEA_STATUSES),
   source: z.enum(IDEA_SOURCES),
+  /** Starred by the organizer; starred ideas are the "chosen" ones in print. */
+  favorite: z.boolean().optional(),
+  /** The one task created from this idea, if any. */
+  taskId: idSchema.optional(),
+  /** Why it was suggested, or where a draft came from. */
+  reason: multiLine('Reason', 300).optional(),
 });
 
 // ---------------------------------------------------------------------------

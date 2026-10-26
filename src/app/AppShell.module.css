@@ -220,3 +220,23 @@
     padding: var(--space-8) var(--space-8) var(--space-10);
   }
 }
+
+@media print {
+  .skipLink,
+  .sidebar {
+    display: none;
+  }
+
+  .shell {
+    display: block;
+    min-height: 0;
+  }
+
+  .main {
+    padding: 0;
+  }
+
+  .main > * {
+    max-width: none;
+  }
+}

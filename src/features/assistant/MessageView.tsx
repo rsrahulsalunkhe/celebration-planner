@@ -167,6 +167,10 @@ interface MessageViewProps {
   onSend: (text: string) => void;
   onApply: (messageId: string) => void;
   onDismiss: (messageId: string) => void;
+  /** Saves one Local AI idea to the Ideas page; omitted where saving does not apply. */
+  onSaveIdea?: (item: { title: string; details: string }) => void;
+  /** Whether an idea with this title is already saved. */
+  isIdeaSaved?: (title: string) => boolean;
 }
 
 export function MessageView({
@@ -176,6 +180,8 @@ export function MessageView({
   onSend,
   onApply,
   onDismiss,
+  onSaveIdea,
+  isIdeaSaved,
 }: MessageViewProps) {
   if (message.role === 'user') {
     return (
@@ -298,6 +304,24 @@ export function MessageView({
               {response.items.map((item) => (
                 <li key={item.title}>
                   <strong>{item.title}.</strong> {item.details}
+                  {response.generated && onSaveIdea ? (
+                    isIdeaSaved?.(item.title) ? (
+                      <span className={styles.muted}> Saved to Ideas.</span>
+                    ) : (
+                      <>
+                        {' '}
+                        <Button
+                          variant="ghost"
+                          aria-label={`Save “${item.title}” to Ideas`}
+                          onClick={() => {
+                            onSaveIdea(item);
+                          }}
+                        >
+                          Save to Ideas
+                        </Button>
+                      </>
+                    )
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -71,12 +71,11 @@ function consequencesFor(
 ): ChangeOperation[] {
   const hasBudget = before.budgetCategories.some((c) => c.templateId !== undefined);
   const hasTimeline = before.tasks.some((t) => t.templateId !== undefined);
-  const hasIdeas = before.ideas.some((i) => i.templateId !== undefined);
   return planOperationsFor(after, configuration, today).filter((op) => {
     if (op.op.startsWith('budgetCategories/') || op.op.startsWith('expenses/'))
       return hasBudget;
     if (op.op.startsWith('tasks/')) return hasTimeline;
-    if (op.op.startsWith('ideas/')) return hasIdeas;
+    // Ideas are the organizer's own choices now; a change never adds or removes them.
     return false;
   });
 }

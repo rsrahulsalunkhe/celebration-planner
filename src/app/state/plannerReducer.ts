@@ -20,6 +20,13 @@ export type PlannerAction =
       /** Reject the edit unless the event is still at this revision. */
       expectedRevision?: number;
     }
+  /** Adds an imported copy (already given new ids) and makes it active. */
+  | { type: 'event/import'; record: EventRecord }
+  /**
+   * Replaces an existing event with an imported version, only after the user
+   * confirmed it. The existing event must still be at `expectedRevision`.
+   */
+  | { type: 'event/replace'; record: EventRecord; expectedRevision: number }
   | { type: 'state/reset' };
 
 export function plannerReducer(
@@ -64,6 +71,32 @@ export function plannerReducer(
       return {
         ...state,
         events: state.events.map((e) => (e.profile.id === action.eventId ? next : e)),
+      };
+    }
+    case 'event/import': {
+      const parsed = eventRecordSchema.safeParse(action.record);
+      const exists = state.events.some((e) => e.profile.id === action.record.profile.id);
+      if (!parsed.success || exists || state.events.length >= LIMITS.events) return state;
+      return {
+        activeEventId: parsed.data.profile.id,
+        events: [...state.events, parsed.data],
+      };
+    }
+    case 'event/replace': {
+      const current = state.events.find((e) => e.profile.id === action.record.profile.id);
+      if (current?.profile.revision !== action.expectedRevision) return state;
+      // A later revision than the replaced one, so earlier proposals become stale.
+      const next = {
+        ...action.record,
+        profile: { ...action.record.profile, revision: current.profile.revision + 1 },
+      };
+      const parsed = eventRecordSchema.safeParse(next);
+      if (!parsed.success) return state;
+      return {
+        activeEventId: parsed.data.profile.id,
+        events: state.events.map((e) =>
+          e.profile.id === parsed.data.profile.id ? parsed.data : e,
+        ),
       };
     }
     case 'state/reset':

@@ -120,6 +120,36 @@ export interface IdeaTagDefinition {
   label: string;
 }
 
+export type EffortLevel = 'low' | 'medium' | 'high';
+export type BudgetLevel = 'low' | 'medium' | 'high';
+
+/** What the Ideas workspace filters and explains with. Stated, not inferred. */
+export interface IdeaFacets {
+  effort: EffortLevel;
+  /** Days of preparation the idea usually needs before the event. */
+  leadDays: number;
+  /** Rough spending level when it is carried out simply. */
+  budget: BudgetLevel;
+  /** Settings it works in. */
+  settings: readonly Setting[];
+  /** Suits only these age bands of the guest of honour; absent means any. */
+  ageBands?: readonly AgeBand[];
+  /** For food ideas: the dietary needs it can meet when prepared that way. */
+  suitsDiets?: readonly DietaryNeed[];
+  /** Accessibility needs it helps with. */
+  helps?: readonly AccessibilityNeed[];
+  /** Accessibility needs it is a poor fit for. */
+  poorFor?: readonly AccessibilityNeed[];
+  /** User priorities it serves. */
+  priorities: readonly Priority[];
+  /** Expense template (same event type) whose illustrative rate covers it. */
+  costFrom?: string;
+  /** The one task "Add as a task" creates. */
+  task: { title: string; leadDays: number };
+  /** Why it is worth doing, in one sentence. */
+  why: string;
+}
+
 export interface IdeaTemplate {
   id: string;
   title: string;
@@ -127,6 +157,7 @@ export interface IdeaTemplate {
   kind: IdeaKind;
   tags: readonly string[];
   when?: Condition;
+  facets: IdeaFacets;
 }
 
 export interface EventTypeConfiguration {

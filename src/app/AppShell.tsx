@@ -162,7 +162,9 @@ export function AppShell() {
       </div>
 
       <main id="main" ref={mainRef} className={styles.main} tabIndex={-1}>
-        <StorageNotice />
+        <div className="no-print">
+          <StorageNotice />
+        </div>
         <ErrorBoundary key={location.pathname}>
           <Outlet />
         </ErrorBoundary>

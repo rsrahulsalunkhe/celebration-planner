@@ -22,7 +22,9 @@ import { PageHeader } from '@/components/PageHeader.tsx';
 import { Stack } from '@/components/Stack.tsx';
 import fieldStyles from '@/components/Fields.module.css';
 import { PLANNING_CONFIGURATION } from '@/data/planning/index.ts';
+import { applyOperations } from '@/domain/editEvent.ts';
 import { createId } from '@/domain/ids.ts';
+import { draftAlreadySaved, ideaFromDraft } from '@/domain/planning/ideas.ts';
 import { previewChanges } from '@/domain/planning/preview.ts';
 import type { EventRecord } from '@/domain/types.ts';
 import { MAX_MESSAGE_CHARS } from '@/services/ai/assistant.ts';
@@ -275,6 +277,24 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
     setAnnouncement(`Applied: ${change.summary}.`);
   };
 
+  /** Saves one Local AI idea as a draft on the Ideas page, once per title. */
+  const saveIdea = (item: { title: string; details: string }) => {
+    if (draftAlreadySaved(event, item.title)) return;
+    const idea = ideaFromDraft(item, createId('idea'), today);
+    const operations = [{ op: 'ideas/upsert' as const, item: idea }];
+    if (!applyOperations(event, operations)) {
+      setAnnouncement('That idea could not be saved. The ideas list may be full.');
+      return;
+    }
+    dispatch({
+      type: 'event/edit',
+      eventId,
+      operations,
+      expectedRevision: event.profile.revision,
+    });
+    setAnnouncement(`Saved “${idea.title}” to Ideas as a Local AI draft.`);
+  };
+
   const dismiss = (messageId: string) => {
     setProposal(messageId, (p) => {
       p.state = 'dismissed';
@@ -387,6 +407,8 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
                     onSend={send}
                     onApply={apply}
                     onDismiss={dismiss}
+                    onSaveIdea={saveIdea}
+                    isIdeaSaved={(title) => draftAlreadySaved(event, title) !== null}
                   />
                 ))}
                 {pending ? (

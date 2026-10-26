@@ -54,7 +54,20 @@ function validateType(config: EventTypeConfiguration): string[] {
   for (const problem of validateTaskTemplates(config.tasks)) at(problem);
 
   const tags = new Set(config.ideaTags.map((t) => t.tag));
+  const expenseIds = new Set(config.expenses.map((e) => e.id));
   for (const idea of config.ideas) {
+    const f = idea.facets;
+    if (!Number.isInteger(f.leadDays) || f.leadDays < 0)
+      at(`idea ${idea.id} needs a whole number of lead days`);
+    if (!Number.isInteger(f.task.leadDays) || f.task.leadDays < 0)
+      at(`idea ${idea.id} task needs a whole number of lead days`);
+    if (f.task.title.trim().length === 0 || f.task.title.length > 120)
+      at(`idea ${idea.id} task title must be 1 to 120 characters`);
+    if (f.settings.length === 0) at(`idea ${idea.id} must work in at least one setting`);
+    if (f.costFrom !== undefined && !expenseIds.has(f.costFrom))
+      at(`idea ${idea.id} uses unknown expense ${f.costFrom} for its cost`);
+    if (idea.kind === 'food' && f.suitsDiets === undefined)
+      at(`food idea ${idea.id} must say which dietary needs it suits`);
     if (idea.tags.length === 0) at(`idea ${idea.id} has no tags`);
     for (const tag of idea.tags)
       if (!tags.has(tag)) at(`idea ${idea.id} uses unknown tag ${tag}`);

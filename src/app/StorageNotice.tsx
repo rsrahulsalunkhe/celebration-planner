@@ -78,6 +78,16 @@ export function StorageNotice() {
   const state = usePlannerState();
   const [result, setResult] = useState<{ text: string; tone: StatusTone } | null>(null);
   const { status, noticeDismissed } = snapshot;
+  const report = (downloaded: boolean, success: string) => {
+    setResult(
+      downloaded
+        ? { text: success, tone: 'success' }
+        : {
+            text: 'The browser did not start the download. Try again, or check that downloads are allowed for this site.',
+            tone: 'error',
+          },
+    );
+  };
 
   const clearButton = (
     <ConfirmAction
@@ -89,7 +99,10 @@ export function StorageNotice() {
         const cleared = clearSavedData();
         setResult(
           cleared
-            ? { text: 'Saved data cleared. You can start again.', tone: 'success' }
+            ? {
+                text: 'Saved data cleared. Start a new event, or import a plan file you exported earlier from Your data.',
+                tone: 'success',
+              }
             : {
                 text: 'Could not clear saved data. The browser may be blocking storage.',
                 tone: 'error',
@@ -133,7 +146,10 @@ export function StorageNotice() {
               <Button
                 icon={<Download aria-hidden size={18} />}
                 onClick={() => {
-                  downloadFile(buildRecoveryFile(backupText));
+                  report(
+                    downloadFile(buildRecoveryFile(backupText)),
+                    'Unreadable data downloaded as a text file.',
+                  );
                 }}
               >
                 Download saved data
@@ -144,7 +160,10 @@ export function StorageNotice() {
                 variant="secondary"
                 icon={<Download aria-hidden size={18} />}
                 onClick={() => {
-                  downloadFile(buildJsonExport(state));
+                  report(
+                    downloadFile(buildJsonExport(state)),
+                    'Backup of all events downloaded.',
+                  );
                 }}
               >
                 Export all events (JSON)

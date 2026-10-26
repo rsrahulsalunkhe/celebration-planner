@@ -1,4 +1,12 @@
-import { CalendarPlus, Download, Pencil, PartyPopper, Trash2 } from 'lucide-react';
+import {
+  CalendarPlus,
+  Download,
+  FileUp,
+  PartyPopper,
+  Pencil,
+  Printer,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ActiveEventGate } from '@/app/ActiveEventGate.tsx';
@@ -11,7 +19,6 @@ import { Badge } from '@/components/Badge.tsx';
 import { Button } from '@/components/Button.tsx';
 import { ButtonLink } from '@/components/ButtonLink.tsx';
 import { Card } from '@/components/Card.tsx';
-import { ComingSoon } from '@/components/ComingSoon.tsx';
 import { ConfirmAction } from '@/components/ConfirmAction.tsx';
 import { EmptyState } from '@/components/EmptyState.tsx';
 import { FactList } from '@/components/FactList.tsx';
@@ -59,17 +66,27 @@ export function OverviewPage() {
           title="Plan your first celebration"
           icon={<PartyPopper aria-hidden size={28} />}
           actions={
-            <ButtonLink
-              to="/new"
-              variant="accent"
-              icon={<CalendarPlus aria-hidden size={18} />}
-            >
-              Create an event
-            </ButtonLink>
+            <>
+              <ButtonLink
+                to="/new"
+                variant="accent"
+                icon={<CalendarPlus aria-hidden size={18} />}
+              >
+                Create an event
+              </ButtonLink>
+              <ButtonLink
+                to="/data"
+                variant="secondary"
+                icon={<FileUp aria-hidden size={18} />}
+              >
+                Import a plan file
+              </ButtonLink>
+            </>
           }
         >
           Weddings, birthdays and community events each get their own plan. Everything you
-          enter stays in this browser. You can also try a fictional demonstration first.
+          enter stays in this browser. You can also try a fictional demonstration first,
+          or import a plan file you exported earlier.
         </EmptyState>
       </>
     );
@@ -174,11 +191,23 @@ function EventOverview({ event }: { event: EventRecord }) {
               variant="secondary"
               icon={<Download aria-hidden size={18} />}
               onClick={() => {
-                downloadFile(buildJsonExport(state));
+                if (!downloadFile(buildJsonExport(state))) {
+                  setMessage({
+                    text: 'The browser did not start the download. Try again, or use Your data to export.',
+                    tone: 'error',
+                  });
+                }
               }}
             >
               Export JSON
             </Button>
+            <ButtonLink
+              to="/print"
+              variant="secondary"
+              icon={<Printer aria-hidden size={18} />}
+            >
+              Print plan
+            </ButtonLink>
             <ConfirmAction
               label="Delete"
               accessibleName={`Delete ${profile.title}`}
@@ -256,15 +285,6 @@ function EventOverview({ event }: { event: EventRecord }) {
         )}
 
         <GuestsCard event={event} />
-
-        <ComingSoon title="Plan, budget targets and recommendations">
-          <p>
-            The rules that build a plan, share the budget, forecast costs and explain
-            every suggestion are written and tested, but this screen does not show a plan
-            yet. That arrives in a later stage. Until then nothing here pretends to be a
-            result.
-          </p>
-        </ComingSoon>
       </Stack>
     </>
   );
