@@ -2,8 +2,11 @@
   font-weight: 600;
 }
 
+/* Empty but still in the page, so screen readers keep listening to it. */
 .message:empty {
-  display: none;
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
 .info,

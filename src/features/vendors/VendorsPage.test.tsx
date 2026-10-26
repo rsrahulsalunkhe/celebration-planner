@@ -272,7 +272,7 @@ describe('agreed quotes and the budget', () => {
     expect(within(form).getByLabelText(/Expense this quote covers/)).toHaveValue(
       venueHire.id,
     );
-    await user.type(within(form).getByLabelText('Agreed total'), '1,10,000');
+    await user.type(within(form).getByLabelText('Agreed total (required)'), '1,10,000');
     await user.type(within(form).getByLabelText(/^Deposit \(optional\)/), '30000');
     fireEvent.change(within(form).getByLabelText(/^Deposit paid on/), {
       target: { value: TODAY },
@@ -286,7 +286,7 @@ describe('agreed quotes and the budget', () => {
       name: 'Agreed quote for Lotus Courtyard Hall',
     });
     expect(within(again).queryByLabelText(/Expense this quote covers/)).toBeNull();
-    const amount = within(again).getByLabelText('Agreed total');
+    const amount = within(again).getByLabelText('Agreed total (required)');
     expect(amount).toHaveValue('110000');
     await user.clear(amount);
     await user.type(amount, '115000');
@@ -376,8 +376,13 @@ describe('the guest panel', () => {
     await user.click(within(preview).getByRole('button', { name: 'Discard' }));
     expect(saved(storage).profile.guestCount).toBe(40);
 
-    await user.clear(within(guests).getByLabelText('New expected guest count'));
-    await user.type(within(guests).getByLabelText('New expected guest count'), '45');
+    await user.clear(
+      within(guests).getByLabelText('New expected guest count (required)'),
+    );
+    await user.type(
+      within(guests).getByLabelText('New expected guest count (required)'),
+      '45',
+    );
     await user.click(within(guests).getByRole('button', { name: 'Preview' }));
     await user.click(
       within(guests).getByRole('button', { name: 'Use 45 expected guests' }),

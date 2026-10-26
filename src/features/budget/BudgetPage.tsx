@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActiveEventGate } from '@/app/ActiveEventGate.tsx';
 import { useCalendar, usePlannerDispatch } from '@/app/state/plannerContext.ts';
 import { Button } from '@/components/Button.tsx';
@@ -52,7 +52,7 @@ function BudgetEditor({ event }: { event: EventRecord }) {
     return true;
   };
 
-  const ledger = buildLedger(event, CONFIG);
+  const ledger = useMemo(() => buildLedger(event, CONFIG), [event]);
   const hasBudget = event.budgetCategories.length > 0;
 
   return (

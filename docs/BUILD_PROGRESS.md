@@ -127,6 +127,56 @@ An optional on-device model now runs beside the guided planner. New modules in `
 - **First use and recovery:** the welcome screen offers "Import a plan file". After clearing unreadable saved data, the message points to importing a plan file. Recovery downloads report a refused download. Import errors say that saved plans have not changed.
 - **Removed:** the stale "Plan, budget targets and recommendations — Not built yet" card on Overview and the unused `ComingSoon` component. No section is marked "Soon" any more.
 
+### Review: accessibility, security and privacy, efficiency
+
+The working app was audited against these three areas (two read-only audits of the code, then checks in the built app). Only concrete problems were fixed; working features were not rewritten.
+
+**Accessibility (aim: WCAG 2.2 AA)**
+
+- **Lost focus:** about 30 actions removed the control that had focus (a button that goes once used, a removed row, a closed form, a rebuilt card), dropping keyboard focus to the top of the page. `src/app/focusRescue.ts` now moves focus to the heading of the section the control was in (the same heading, or one with the same text after a rebuild), or the page's h1. A form sent with problems moves focus to its first invalid field when its own handler did not move it.
+- **Route changes:** pages reached by typing an address or with Back did not update the tab title or move focus to the new heading. Those history entries all get the router key "default", so the shell now keys on the key plus the path.
+- **Mobile menu:** closes when focus moves past it, so the open panel cannot cover the focused control.
+- **Status messages:** an empty live region was `display: none`, which takes it out of the accessibility tree so the first message could be missed. It now stays in the tree with no padding or border.
+- **Accessible names now contain the visible label:** "Mark done: …", "Reopen: …", "Keep this date (…) for “…”", "Add as a task: …" (then "Task added: …"), and "Save to Ideas: …". The vendor "Compare" button keeps its text and shows its state with `aria-pressed`.
+- **Announced results:** the import preview and the guest-count preview receive focus when they appear. The vendor search result count is announced once typing pauses (600 ms), not on every key.
+- **Headings:**
+  - Vendors: "Not suitable" is now an h3 section.
+  - Error states take a heading level: h3 inside a form, h1 for the page-level error fallback, and no heading for the storage notice above the page heading.
+- **Not colour alone:**
+  - Timeline health messages start with "Problem:" or "Warning:".
+  - Favourite buttons show a filled star when pressed.
+- **Reflow:** badges wrap long text. Printed-plan tables are real tables inside keyboard-focusable, named scroll regions; only money columns stay on one line.
+- **Fields:** required fields show "(required)" (guest name, agreed amount, payment amount, guest count, category target). The before-and-after table region in assistant proposals has a role and name.
+- **Touch targets:** the plan file input is now 44 px high.
+
+**Security and privacy**
+
+- **Content-Security-Policy:**
+  - Added to the build as a meta tag. The dev server needs inline scripts, so it is not added there.
+  - Allows: scripts from the site only, plus `'wasm-unsafe-eval'` for the model's WebAssembly.
+  - Network requests: the site plus huggingface.co, *.huggingface.co, *.hf.co and raw.githubusercontent.com.
+  - Blocks: objects, base-uri changes and form posts.
+- **Text checks:** names, titles and notes now refuse bidirectional override and isolate characters (U+202A–202E, U+2066–2069), which can make stored text display in a different order.
+- **Model files:**
+  - "Clear saved data" said it removed everything, but the downloaded model (about 870 MB) stays in browser storage. The wording now says so.
+  - Your data has "Delete downloaded model", which calls the SDK's `deleteModelAllInfoInCache` for both builds. It is refused while a model is loaded.
+- **Conversations:** a deleted event's conversation, or all conversations after clearing data, is dropped from memory.
+- **Model errors:** shown in the chat cut to 200 characters.
+- **Model output keys:** repeated idea titles from the model can no longer collide as React keys.
+- **Dependencies:** `npm audit` and `npm audit --omit=dev` found 0 vulnerabilities, so nothing was upgraded.
+- **Checked and fine:** no secrets or VITE_ variables; no raw HTML, `eval`, `new Function` or non-literal dynamic import; links in assistant replies come from the guided planner only, never from the model; model ids and URLs are constants; stored data, imports, proposals and model output are validated at their boundaries; clearing removes only this app's key and asks first; guest names never reach the assistant.
+
+**Efficiency**
+
+- **Streaming:** while a model writes, the streamed text is redrawn at most every 150 ms instead of on every token. Previews for pending proposals are computed once per change, not on every render or keystroke.
+- **Planner results:** the timeline, budget ledger, idea suggestions and vendor matches are memoised on the event (vendor matching no longer reruns on every search key).
+- **Formatting:** number and date formatters are cached instead of rebuilt for every amount and date.
+- **Local model:**
+  - A model already in the browser's storage is no longer refused when free space is below the download size.
+  - Leaving the page sets the status to stopped, so a page restored from the back/forward cache does not show "Ready" with no engine.
+  - The chat follows new replies after the conversation reaches its 40-message cap (it followed the length, which stops changing).
+- **Not changed:** each edit is still validated by the page and again by the reducer, and saving still happens on every state change (synchronous, at most about 2 MB). Both are correct and measured fast enough; changing them would touch every editor.
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -199,7 +249,49 @@ An optional on-device model now runs beside the guided planner. New modules in `
 - **Stage 10:** a "chosen idea" in print is a favourite or an idea on the checklist; other saved ideas are counted but not printed.
 - **Stage 10:** money in imported files must be whole paise numbers; text such as "₹5,00,000" or fractions are refused rather than converted, so an import can never change an amount by guessing.
 
+- **Review:** focus is rescued centrally instead of in each of the about 30 components. It acts only when focus has actually been lost, so components that already move focus keep their behaviour.
+- **Review:** the CSP is a meta tag because the app is static and may be hosted anywhere. A meta CSP cannot set `frame-ancestors` and does not cover the model worker, whose own response headers would. Hosts that can send headers should send the same policy as a header.
+- **Review:** WebLLM appears twice in the build (main thread and worker, about 6 MB each). Neither is in the first page load. Moving the cache check into the worker would remove the main-thread copy; that was not done.
+
 ## Verification results (actually run)
+
+### Review
+
+Windows 11, Node v24.16.0.
+
+| Check                                       | Result                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run typecheck`, `lint`, `format:check` | exit 0                                                                                                                                                                                                                                                                                                       |
+| `npm run test:run`                          | 34 files, 553 tests passed (9 new: focus rescue, invalid field focus, address and Back navigation, menu closing, cached model with little storage, page-left status, model file deletion, two bidirectional-control cases). The focus, navigation and menu tests were each checked to fail without their fix |
+| `npm audit`, `npm audit --omit=dev`         | 0 vulnerabilities                                                                                                                                                                                                                                                                                            |
+| `npm run build`                             | main JS 738.37 kB (221.19 kB gzip, 218.6 kB at gzip -9), CSS 35.98 kB; WebLLM chunk 6,038.37 kB and worker 6,025.48 kB                                                                                                                                                                                       |
+
+Main chunk by minified bytes, from the source map: react-dom 202.4 kB, app features 143.9 kB, domain 90.4 kB, zod 88.9 kB, planning data 58.1 kB, services 43.8 kB, react-router 37.5 kB, app shell 13.5 kB.
+
+In the built-in browser (Chromium), against the production build (`vite preview` at http://localhost:5183, same origin as the cached model):
+
+| Step                                          | Result                                                                                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First load                                    | Only `index-*.js` and `index-*.css` requested; no SDK, worker or model                                                                            |
+| All 8 pages with the CSP                      | No CSP violations, no console errors                                                                                                              |
+| Enable local AI                               | SDK chunk loaded only then; "already in this browser’s storage"                                                                                   |
+| Load from cache, under the CSP                | Ready in 9.7 s                                                                                                                                    |
+| Theme ideas from the real model               | Reply in 40 s, valid; 3 announcements in total ("working on it", "replied" and the earlier "ready"); 88 text updates for the whole streamed reply |
+| Save to Ideas, then lost focus                | Before the last fix focus fell to the page; after it focus is on the suggestion’s heading                                                         |
+| Invalid guest count sent                      | Focus on the field, `aria-invalid`, error linked by `aria-describedby`                                                                            |
+| Address and Back navigation                   | Title and h1 focus follow every page (before the fix they stopped after the first one)                                                            |
+| Reflow at 320 px and at 640 px (200% of 1280) | No horizontal page scroll on any of 9 pages; wide tables scroll inside their focusable regions                                                    |
+| Touch targets                                 | Nothing under 24 px except an inline link in a sentence (exempt); the file input was 21 px and is now 44 px                                       |
+| Reduced motion                                | Global rule disables transitions, animations and smooth scrolling                                                                                 |
+
+- **Not verified:**
+  - **Screen readers:** no real screen reader (NVDA, JAWS, VoiceOver) was used.
+  - **axe:** not run; loading it from a CDN into the page was not permitted in this session.
+  - **Contrast:** computed from the design tokens by the audit (every text pair at least 4.5:1, borders, focus ring and chart fills at least 3:1, except decorative stripes and card borders), not measured on screen.
+  - **Model deletion:** "Delete downloaded model" was tested with a fake SDK only; it was not run against the real cache, so the about 870 MB model stays.
+  - **Focus events:** the browser pane was hidden, so Chrome sent no focus events. The focus rescue was changed to work without them; real keyboard Tab presses were not tried.
+  - **Real 200% zoom:** not tried; only an emulated 640 px viewport.
+  - **Identical messages:** a status message repeated with identical text is not announced again.
 
 ### Stage 10
 
@@ -373,8 +465,8 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 
 1. **Show the plan:** generated tasks, ideas and recommendations with reasons on Overview, with an apply button, using the existing engine. (The budget part is done in stage 5.)
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
-3. **Print checks:** look at a real print preview and saved PDF in Chromium and Firefox, and run axe on Ideas, Your data and the printable plan. (Ideas, export, import and printing are done in stage 10.)
-4. **Local model follow-ups:** a "Remove downloaded model" action (`deleteModelAllInfoInCache`) so the about 870 MB can be freed from the app, and checks on a discrete GPU and on phones. (The guided planner is done in stage 8, local AI in stage 9.)
+3. **Print and accessibility checks:** look at a real print preview and saved PDF in Chromium and Firefox; run axe (bundled locally, not from a CDN) and a real screen reader on every page; check real keyboard Tab order in a focused window.
+4. **Local model follow-ups:** run "Delete downloaded model" against the real cache, move the cache check into the worker so WebLLM is not bundled twice, and check a discrete GPU and phones. (The guided planner is done in stage 8, local AI in stage 9.)
 5. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
 6. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
 7. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.

@@ -1,5 +1,5 @@
 import { CalendarPlus, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActiveEventGate } from '@/app/ActiveEventGate.tsx';
 import { useCalendar, usePlannerDispatch } from '@/app/state/plannerContext.ts';
 import { Button } from '@/components/Button.tsx';
@@ -104,7 +104,8 @@ function TimelineWorkspace({ event }: { event: EventRecord }) {
     return true;
   };
 
-  const timeline = buildTimeline(event, today, CONFIG);
+  // Rebuilt when the event or the day changes, not on every filter keystroke.
+  const timeline = useMemo(() => buildTimeline(event, today, CONFIG), [event, today]);
   const { health } = timeline;
   const visible = filterTimeline(timeline.items, filters);
   const groups = groupByPhase(visible);
@@ -182,20 +183,27 @@ function TimelineWorkspace({ event }: { event: EventRecord }) {
           />
           {health.messages.length > 0 ? (
             <ul className={styles.messages}>
-              {health.messages.map((m) => (
-                <li
-                  key={m}
-                  data-tone={
-                    health.overloaded && m.includes('feasible')
-                      ? 'critical'
-                      : health.catchUpCount > 0
-                        ? 'warning'
-                        : undefined
-                  }
-                >
-                  {m}
-                </li>
-              ))}
+              {health.messages.map((m) => {
+                const tone =
+                  health.overloaded && m.includes('feasible')
+                    ? 'critical'
+                    : health.catchUpCount > 0
+                      ? 'warning'
+                      : undefined;
+                // The word says how serious it is; the colour only repeats it.
+                const label =
+                  tone === 'critical'
+                    ? 'Problem: '
+                    : tone === 'warning'
+                      ? 'Warning: '
+                      : '';
+                return (
+                  <li key={m} data-tone={tone}>
+                    {label ? <strong>{label}</strong> : null}
+                    {m}
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </Card>
@@ -399,7 +407,7 @@ function ReviewRow({
       <div className={styles.buttons}>
         <Button
           variant="secondary"
-          aria-label={`Keep ${formatDate(item.task.dueDate)} for “${item.task.title}”`}
+          aria-label={`Keep this date (${formatDate(item.task.dueDate)}) for “${item.task.title}”`}
           onClick={onKeep}
         >
           Keep this date

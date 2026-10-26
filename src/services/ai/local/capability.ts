@@ -33,6 +33,8 @@ export interface CapabilityResult {
   variant: ModelVariant;
   adapter: string | null;
   freeStorageBytes: number | null;
+  /** Too little free space for a download; a model already in the cache can still load. */
+  storageShort: boolean;
 }
 
 export function browserEnvironment(): CapabilityEnvironment {
@@ -61,6 +63,7 @@ export async function checkCapability(
   let variant: ModelVariant = 'f16';
   let adapterName: string | null = null;
   let freeStorageBytes: number | null = null;
+  let storageShort = false;
 
   if (!env.isSecureContext) {
     reasons.push('WebGPU only works on secure pages (https or localhost).');
@@ -100,6 +103,7 @@ export async function checkCapability(
       if (quota !== undefined && usage !== undefined) {
         freeStorageBytes = Math.max(0, quota - usage);
         if (freeStorageBytes < downloadBytes) {
+          storageShort = true;
           reasons.push(
             'This browser does not have enough storage space for the model files.',
           );
@@ -117,5 +121,6 @@ export async function checkCapability(
     variant,
     adapter: adapterName,
     freeStorageBytes,
+    storageShort,
   };
 }

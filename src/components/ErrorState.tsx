@@ -8,6 +8,8 @@ interface ErrorStateProps {
   tone?: 'error' | 'warning';
   children?: ReactNode;
   actions?: ReactNode;
+  /** Level of the title in the page outline. 'none' for notices above the page heading. */
+  headingLevel?: 1 | 2 | 3 | 'none';
 }
 
 /**
@@ -19,8 +21,10 @@ export function ErrorState({
   tone = 'error',
   children,
   actions,
+  headingLevel = 2,
 }: ErrorStateProps) {
   const titleId = useId();
+  const Title = ({ none: 'p', 1: 'h1', 2: 'h2', 3: 'h3' } as const)[headingLevel];
   return (
     <section
       role="alert"
@@ -29,9 +33,9 @@ export function ErrorState({
     >
       <div className={styles.heading}>
         <AlertTriangle aria-hidden size={20} className={styles.icon} />
-        <h2 id={titleId} className={styles.title}>
+        <Title id={titleId} className={styles.title}>
           {title}
-        </h2>
+        </Title>
       </div>
       {children ? <div className={styles.body}>{children}</div> : null}
       {actions ? <div className={styles.actions}>{actions}</div> : null}

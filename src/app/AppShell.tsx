@@ -5,6 +5,7 @@ import { Badge } from '@/components/Badge.tsx';
 import { selectActiveEvent } from '@/domain/selectors.ts';
 import { ErrorBoundary } from './ErrorBoundary.tsx';
 import { EventSwitcher } from './EventSwitcher.tsx';
+import { watchLostFocus } from './focusRescue.ts';
 import { DATA_NAV_ITEM, NAV_ITEMS, type NavItem } from './navigation.ts';
 import { usePlannerState } from './state/plannerContext.ts';
 import { StorageNotice } from './StorageNotice.tsx';
@@ -57,24 +58,30 @@ export function AppShell() {
   const location = useLocation();
   const state = usePlannerState();
   const activeTitle = selectActiveEvent(state)?.profile.title;
+  // History entries made by typing an address or by Back have no state, so the
+  // router gives them all the key "default". The path tells those pages apart.
+  const locationId = `${location.key} ${location.pathname}`;
 
   // The menu is "open for" one location, so any navigation closes it without an effect.
   const [openFor, setOpenFor] = useState<string | null>(null);
-  const menuOpen = openFor === location.key;
+  const menuOpen = openFor === locationId;
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLElement>(null);
-  const lastKey = useRef(location.key);
+  const lastKey = useRef(locationId);
 
   // After a page change, name the tab and move the reader to the new heading.
   useEffect(() => {
     const heading = mainRef.current?.querySelector('h1');
     const text = heading?.textContent;
     document.title = text ? `${text} · ${SITE_NAME}` : SITE_NAME;
-    if (lastKey.current !== location.key) {
-      lastKey.current = location.key;
+    if (lastKey.current !== locationId) {
+      lastKey.current = locationId;
       (heading ?? mainRef.current)?.focus();
     }
-  }, [location.key, activeTitle]);
+  }, [locationId, activeTitle]);
+
+  // When an action removes the control that had focus, keep the reader in that section.
+  useEffect(() => (mainRef.current ? watchLostFocus(mainRef.current) : undefined), []);
 
   const closeMenu = () => {
     setOpenFor(null);
@@ -113,7 +120,17 @@ export function AppShell() {
         Skip to content
       </a>
 
-      <div className={styles.sidebar} onKeyDown={handleKeyDown}>
+      <div
+        className={styles.sidebar}
+        onKeyDown={handleKeyDown}
+        onBlur={(event) => {
+          // The open menu covers the page, so close it when focus moves past it.
+          const next = event.relatedTarget;
+          if (menuOpen && next instanceof Node && !event.currentTarget.contains(next)) {
+            closeMenu();
+          }
+        }}
+      >
         <header className={styles.bar}>
           <Link to="/" className={styles.brand} onClick={closeMenu}>
             <BrandMark />
@@ -126,7 +143,7 @@ export function AppShell() {
             aria-expanded={menuOpen}
             aria-controls={MENU_ID}
             onClick={() => {
-              setOpenFor(menuOpen ? null : location.key);
+              setOpenFor(menuOpen ? null : locationId);
             }}
           >
             {menuOpen ? <X aria-hidden size={20} /> : <Menu aria-hidden size={20} />}

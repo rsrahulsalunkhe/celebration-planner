@@ -126,7 +126,7 @@ export function TaskItem({ item, event, onStatus, onSave }: TaskItemProps) {
           icon={
             done ? <RotateCcw aria-hidden size={16} /> : <Check aria-hidden size={16} />
           }
-          aria-label={done ? `Reopen “${task.title}”` : `Mark “${task.title}” done`}
+          aria-label={done ? `Reopen: ${task.title}` : `Mark done: ${task.title}`}
           onClick={() => {
             onStatus(task, done ? 'todo' : 'done');
           }}

@@ -43,6 +43,8 @@ import { useLocalModel } from './localModelContext.ts';
 import { Chips, MessageView } from './MessageView.tsx';
 
 const CONFIG = PLANNING_CONFIGURATION;
+/** How often streamed text is redrawn while a model writes. */
+const PROGRESS_MS = 150;
 
 export function AssistantPage() {
   return (
@@ -93,15 +95,39 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
   const pendingRef = useRef<Pending | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
+  // Streamed text is drawn at most every PROGRESS_MS, not once per token.
+  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressText = useRef('');
+
+  const stopProgress = () => {
+    if (progressTimer.current !== null) clearTimeout(progressTimer.current);
+    progressTimer.current = null;
+    progressText.current = '';
+  };
 
   // Leaving the event (switching, deleting or navigating away) cancels any request.
   useEffect(
     () => () => {
       pendingRef.current?.controller.abort();
       pendingRef.current = null;
+      stopProgress();
     },
     [],
   );
+
+  // Engine previews for pending proposals, recomputed only when the event or a message changes.
+  const previews = useMemo(
+    () =>
+      new Map(
+        messages.flatMap((m) =>
+          m.role === 'assistant' && m.proposal?.state === 'pending'
+            ? [[m.id, previewChanges(state, m.proposal.change, today)] as const]
+            : [],
+        ),
+      ),
+    [messages, state, today],
+  );
+  const lastMessageId = messages.at(-1)?.id;
 
   // Follow new messages only for someone already at the end of the conversation.
   useLayoutEffect(() => {
@@ -113,7 +139,8 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
     } else {
       setHasNewBelow(true);
     }
-  }, [messages.length]);
+    // The id, not the length: the conversation is capped, so its length stops changing.
+  }, [lastMessageId]);
 
   const add = (message: ChatMessage) => {
     session.update(eventId, (list) => [...list, message]);
@@ -121,6 +148,7 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
 
   const finish = () => {
     pendingRef.current = null;
+    stopProgress();
     setPending(null);
     setProgress('');
   };
@@ -162,7 +190,14 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
     provider
       .respond(request, next.controller.signal, (preview) => {
         // Shown in the working message only; never announced token by token.
-        if (pendingRef.current?.requestId === request.requestId) setProgress(preview);
+        if (pendingRef.current?.requestId !== request.requestId) return;
+        progressText.current = preview;
+        progressTimer.current ??= setTimeout(() => {
+          progressTimer.current = null;
+          if (pendingRef.current?.requestId === request.requestId) {
+            setProgress(progressText.current);
+          }
+        }, PROGRESS_MS);
       })
       .then((response) => {
         // Ignore replies to requests that were cancelled or replaced.
@@ -399,11 +434,7 @@ function AssistantWorkspace({ event }: { event: EventRecord }) {
                     key={m.id}
                     message={m}
                     busy={pending !== null}
-                    preview={
-                      m.role === 'assistant' && m.proposal?.state === 'pending'
-                        ? previewChanges(state, m.proposal.change, today)
-                        : null
-                    }
+                    preview={previews.get(m.id) ?? null}
                     onSend={send}
                     onApply={apply}
                     onDismiss={dismiss}

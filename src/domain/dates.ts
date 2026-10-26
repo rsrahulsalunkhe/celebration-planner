@@ -64,11 +64,16 @@ export const systemCalendar: CalendarHelper = {
   addDays,
 };
 
+// Building a formatter is far slower than using one, and long lists format many dates.
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
 export function formatDate(value: IsoDate, locale = 'en-IN'): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'long',
-    timeZone: 'UTC',
-  }).format(requireDate(value));
+  let format = dateFormats.get(locale);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: 'UTC' });
+    dateFormats.set(locale, format);
+  }
+  return format.format(requireDate(value));
 }
 
 /**

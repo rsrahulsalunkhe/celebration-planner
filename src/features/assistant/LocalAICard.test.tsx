@@ -76,6 +76,7 @@ function setUp(
           return engine;
         },
         hasModelInCache: () => Promise.resolve(false),
+        deleteModelAllInfoInCache: () => Promise.resolve(),
         prebuiltAppConfig: {
           model_list: [{ model_id: LOCAL_MODEL.ids.f16, model: LOCAL_MODEL.source }],
         },

@@ -333,6 +333,7 @@ export function AllocationCard({
         >
           <TextField
             name="category-target"
+            required
             label={`Target for ${editing.name}, in rupees`}
             value={targetText}
             inputMode="decimal"

@@ -25,6 +25,8 @@ describe('eventProfileSchema', () => {
     ['blank title', { title: '   ' }],
     ['over-long title', { title: 'x'.repeat(101) }],
     ['control characters in title', { title: 'a\u0000b' }],
+    ['a bidirectional override in title', { title: 'invoice‮fdp.exe' }],
+    ['a bidirectional isolate in city', { city: 'Pune⁦x' }],
     ['blank city', { city: '' }],
     ['unknown type', { eventType: 'funeral' }],
     ['impossible date', { date: '2027-02-30' }],

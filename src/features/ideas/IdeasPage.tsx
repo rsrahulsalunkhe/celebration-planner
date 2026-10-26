@@ -1,5 +1,5 @@
 import { ListPlus, Plus, Star, Trash2 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ActiveEventGate } from '@/app/ActiveEventGate.tsx';
 import { useCalendar, usePlannerDispatch } from '@/app/state/plannerContext.ts';
@@ -107,10 +107,16 @@ function IdeasWorkspace({ event }: { event: EventRecord }) {
     setFilters((f) => ({ ...f, [key]: value }));
   };
 
-  const result = suggestIdeas(event, today, CONFIG, filters);
+  const result = useMemo(
+    () => suggestIdeas(event, today, CONFIG, filters),
+    [event, today, filters],
+  );
   const saved = event.ideas.filter((i) => i.status === 'saved' || i.favorite === true);
-  const overBudget =
-    event.budgetCategories.length > 0 && buildLedger(event, CONFIG).headroomPaise < 0;
+  const overBudget = useMemo(
+    () =>
+      event.budgetCategories.length > 0 && buildLedger(event, CONFIG).headroomPaise < 0,
+    [event],
+  );
 
   const addTask = (idea: Idea) => {
     const outcome = ideaTaskOperations(
@@ -194,7 +200,13 @@ function IdeasWorkspace({ event }: { event: EventRecord }) {
                     <div className={styles.buttons}>
                       <Button
                         variant={idea.favorite ? 'primary' : 'secondary'}
-                        icon={<Star aria-hidden size={16} />}
+                        icon={
+                          <Star
+                            aria-hidden
+                            size={16}
+                            fill={idea.favorite ? 'currentColor' : 'none'}
+                          />
+                        }
                         aria-pressed={idea.favorite === true}
                         aria-label={`Favourite “${idea.title}”`}
                         onClick={() => {
@@ -221,7 +233,7 @@ function IdeasWorkspace({ event }: { event: EventRecord }) {
                         <Button
                           variant="secondary"
                           icon={<ListPlus aria-hidden size={16} />}
-                          aria-label={`Add “${idea.title}” as a task`}
+                          aria-label={`Add as a task: ${idea.title}`}
                           onClick={() => {
                             addTask(idea);
                           }}
@@ -389,7 +401,13 @@ function IdeasWorkspace({ event }: { event: EventRecord }) {
                     )}
                     <Button
                       variant={s.saved?.favorite ? 'primary' : 'secondary'}
-                      icon={<Star aria-hidden size={16} />}
+                      icon={
+                        <Star
+                          aria-hidden
+                          size={16}
+                          fill={s.saved?.favorite ? 'currentColor' : 'none'}
+                        />
+                      }
                       aria-pressed={s.saved?.favorite === true}
                       aria-label={`Favourite “${s.title}”`}
                       onClick={() => {
@@ -401,7 +419,7 @@ function IdeasWorkspace({ event }: { event: EventRecord }) {
                     <Button
                       variant="secondary"
                       icon={<ListPlus aria-hidden size={16} />}
-                      aria-label={`Add “${s.title}” as a task`}
+                      aria-label={`${s.saved?.taskId ? 'Task added' : 'Add as a task'}: ${s.title}`}
                       onClick={() => {
                         addTask(ideaFromSuggestion(event, s, s.saved?.favorite ?? false));
                       }}

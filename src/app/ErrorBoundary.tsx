@@ -30,6 +30,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (!this.state.failed) return this.props.children;
     return (
       <ErrorState
+        headingLevel={1}
         title="This page could not be shown"
         actions={
           <>

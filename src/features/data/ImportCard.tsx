@@ -1,5 +1,5 @@
 import { FileUp } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { usePlannerDispatch, usePlannerState } from '@/app/state/plannerContext.ts';
 import { Button } from '@/components/Button.tsx';
 import { Card } from '@/components/Card.tsx';
@@ -48,9 +48,15 @@ export function ImportCard() {
   const dispatch = usePlannerDispatch();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewHeading = useRef<HTMLHeadingElement>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [done, setDone] = useState<string | null>(null);
+
+  // Take the reader to what the file contains, where the choices are.
+  useEffect(() => {
+    if (preview) previewHeading.current?.focus();
+  }, [preview]);
 
   const reset = () => {
     setPreview(null);
@@ -168,7 +174,9 @@ export function ImportCard() {
 
       {preview && (
         <section aria-labelledby={`${inputId}-preview`} className={styles.preview}>
-          <h3 id={`${inputId}-preview`}>Preview of {preview.fileName}</h3>
+          <h3 id={`${inputId}-preview`} ref={previewHeading} tabIndex={-1}>
+            Preview of {preview.fileName}
+          </h3>
           <p>
             {preview.kind === 'event' ? 'A plan file' : 'A full backup'}
             {preview.exportedAt ? `, exported ${preview.exportedAt.slice(0, 10)}` : ''},

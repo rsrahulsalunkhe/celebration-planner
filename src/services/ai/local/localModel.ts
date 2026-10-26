@@ -59,6 +59,7 @@ export interface WebLlmSdk {
     chatOpts: { context_window_size: number },
   ) => Promise<EngineLike>;
   hasModelInCache: (modelId: string) => Promise<boolean>;
+  deleteModelAllInfoInCache: (modelId: string) => Promise<void>;
   prebuiltAppConfig: { model_list: { model_id: string; model: string }[] };
 }
 
@@ -167,7 +168,9 @@ export class LocalModelController {
       LOCAL_MODEL.measured.repositoryBytes + LOCAL_MODEL.measured.modelLibraryBytes,
     );
     if (token !== this.generation) return;
-    if (!capability.ok) {
+    // Short of space is only a problem if the model still has to be downloaded.
+    const onlyStorage = capability.storageShort && capability.reasons.length === 1;
+    if (!capability.ok && !onlyStorage) {
       this.set({ kind: 'unsupported', reasons: capability.reasons });
       return;
     }
@@ -185,7 +188,15 @@ export class LocalModelController {
     }
     const estimate = await this.estimate(sdk, LOCAL_MODEL.ids[capability.variant]);
     if (token !== this.generation) return;
-    this.set({ kind: 'ready-to-download', capability, estimate });
+    if (onlyStorage && !estimate.cached) {
+      this.set({ kind: 'unsupported', reasons: capability.reasons });
+      return;
+    }
+    this.set({
+      kind: 'ready-to-download',
+      capability: { ...capability, ok: true, reasons: [] },
+      estimate,
+    });
   }
 
   private async estimate(sdk: WebLlmSdk, modelId: string): Promise<DownloadEstimate> {
@@ -270,6 +281,31 @@ export class LocalModelController {
     }
   }
 
+  /**
+   * Deletes the downloaded model files (weights, library and config, for both
+   * builds) from this browser's storage. Refused while a model is loading or
+   * loaded: turn local AI off first. Loads the SDK if needed, never a model.
+   */
+  async deleteDownloadedModel(): Promise<'deleted' | 'busy' | 'failed'> {
+    const busy = ['capability-check', 'downloading', 'ready', 'generating'];
+    if (busy.includes(this.status.kind)) return 'busy';
+    try {
+      const sdk = this.sdk ?? (await this.deps.loadSdk());
+      this.sdk = sdk;
+      for (const id of Object.values(LOCAL_MODEL.ids)) {
+        await sdk.deleteModelAllInfoInCache(id);
+      }
+    } catch {
+      return 'failed';
+    }
+    // An earlier check said the model was cached; that is no longer true.
+    if (this.status.kind === 'ready-to-download') {
+      this.generation += 1;
+      this.set({ kind: 'idle' });
+    }
+    return 'deleted';
+  }
+
   /** Turns local AI off: unloads the model, releases the GPU and ends the worker. */
   async unload(): Promise<void> {
     if (this.status.kind !== 'ready' && this.status.kind !== 'generating') return;
@@ -299,6 +335,10 @@ export class LocalModelController {
   dispose(): void {
     this.generation += 1;
     this.terminate();
+    // A page restored from the back/forward cache must not claim a running engine.
+    if (this.status.kind !== 'idle') {
+      this.set({ kind: 'stopped', message: 'Local AI stopped when the page was left.' });
+    }
   }
 
   /**

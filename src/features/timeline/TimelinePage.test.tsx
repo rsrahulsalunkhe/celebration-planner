@@ -103,7 +103,7 @@ describe('the timeline workspace', () => {
     ).toHaveTextContent('Confirm the total budget and reserve; Draft the guest list');
     await userEvent.click(
       within(venue).getByRole('button', {
-        name: 'Mark “Shortlist and book the venue” done',
+        name: 'Mark done: Shortlist and book the venue',
       }),
     );
     expect(status()).toMatch(/prerequisites .* are still open and were not changed/);
@@ -250,7 +250,7 @@ describe('same-day and past events', () => {
     const storage = renderAt('/timeline', past);
     expect(screen.getByText(/kept as history/)).toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole('button', { name: 'Mark “Thank the volunteers” done' }),
+      screen.getByRole('button', { name: 'Mark done: Thank the volunteers' }),
     );
     expect(
       saved(storage).tasks.find((t) => t.templateId === 'task.thank-volunteers')?.status,

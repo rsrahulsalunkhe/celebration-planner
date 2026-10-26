@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/Checkbox.tsx';
 import { selectActiveEvent } from '@/domain/selectors.ts';
 import type { EventRecord } from '@/domain/types.ts';
 import { useAssistantSession } from '@/features/assistant/assistantSession.ts';
+import { useLocalModel } from '@/features/assistant/localModelContext.ts';
 import { ImportCard } from './ImportCard.tsx';
 import { transcriptOf } from './transcript.ts';
 import { ConfirmAction } from '@/components/ConfirmAction.tsx';
@@ -117,6 +118,49 @@ function ExportPlanCard({ record }: { record: EventRecord }) {
   );
 }
 
+/** The local AI model files are kept apart from saved plans, so they get their own delete. */
+function ModelFilesCard() {
+  const { controller } = useLocalModel();
+  const [result, setResult] = useState<{ text: string; tone: StatusTone } | null>(null);
+  return (
+    <Card title="Local AI model files">
+      <p className={styles.help}>
+        If you enabled local AI, this browser keeps the downloaded model (about 870 MB) in
+        its storage for this site so it loads faster next time. It contains no plan data.
+        Clearing saved data does not remove it; delete it here.
+      </p>
+      <ConfirmAction
+        label="Delete downloaded model"
+        icon={<Trash2 aria-hidden size={18} />}
+        confirmLabel="Yes, delete the model files"
+        message="This deletes the local AI model files from this browser. Your plans are not affected. Using local AI again will download the model again."
+        onConfirm={() => {
+          setResult({ text: 'Deleting the model files…', tone: 'info' });
+          void controller.deleteDownloadedModel().then((outcome) => {
+            setResult(
+              outcome === 'deleted'
+                ? {
+                    text: 'Local AI model files deleted from this browser (if there were any).',
+                    tone: 'success',
+                  }
+                : outcome === 'busy'
+                  ? {
+                      text: 'Local AI is loading or turned on. Turn it off on the Assistant page first.',
+                      tone: 'error',
+                    }
+                  : {
+                      text: 'The model files could not be deleted. You can remove them by clearing this site’s data in the browser settings.',
+                      tone: 'error',
+                    },
+            );
+          });
+        }}
+      />
+      <StatusMessage message={result?.text} tone={result?.tone ?? 'info'} />
+    </Card>
+  );
+}
+
 export function DataPage() {
   const state = usePlannerState();
   const active = selectActiveEvent(state);
@@ -147,6 +191,10 @@ export function DataPage() {
             </li>
             <li>Assistant chat is not saved. It exists only while this tab is open.</li>
             <li>
+              Local AI model files, if you downloaded them, are kept separately in this
+              browser’s storage and can be deleted below.
+            </li>
+            <li>
               Limits: up to {LIMITS.events} events, and about{' '}
               {(LIMITS.payloadChars / 1_000_000).toString()} MB of saved data in total.
             </li>
@@ -165,6 +213,8 @@ export function DataPage() {
         {active && <ExportPlanCard record={active} />}
 
         <ImportCard />
+
+        <ModelFilesCard />
 
         <Card title="Back up everything, or clear">
           <div className={styles.actions}>
@@ -185,7 +235,7 @@ export function DataPage() {
               label="Clear saved data"
               icon={<Trash2 aria-hidden size={18} />}
               confirmLabel="Yes, clear saved data"
-              message="This removes everything Celebration Planner saved in this browser and closes the events open in this tab. Other websites’ data is not touched. This cannot be undone."
+              message="This removes the events, plans and settings Celebration Planner saved in this browser and closes the events open in this tab. Downloaded local AI model files are kept (delete them separately). Other websites’ data is not touched. This cannot be undone."
               onConfirm={() => {
                 setResult(
                   clearSavedData()

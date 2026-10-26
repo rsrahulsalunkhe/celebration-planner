@@ -128,6 +128,7 @@ function harness(
       },
     ),
     hasModelInCache: vi.fn(() => Promise.resolve(false)),
+    deleteModelAllInfoInCache: vi.fn(() => Promise.resolve()),
     prebuiltAppConfig: {
       model_list: [
         {
@@ -368,6 +369,47 @@ describe('lifecycle', () => {
     expect(engine.unload).toHaveBeenCalledTimes(1);
     expect(workers[0]?.terminated).toBe(true);
     expect(controller.getStatus()).toMatchObject({ kind: 'stopped' });
+  });
+
+  it('loads a cached model even when free storage is below the download size', async () => {
+    const short = env({
+      storageEstimate: () => Promise.resolve({ quota: 100, usage: 50 }),
+    });
+    const cached = harness({ environment: short });
+    vi.mocked(cached.sdk.hasModelInCache).mockResolvedValue(true);
+    await cached.controller.checkDevice();
+    expect(cached.controller.getStatus()).toMatchObject({
+      kind: 'ready-to-download',
+      estimate: { cached: true },
+      capability: { ok: true, reasons: [] },
+    });
+
+    const fresh = harness({ environment: short });
+    await fresh.controller.checkDevice();
+    expect(fresh.controller.getStatus()).toMatchObject({ kind: 'unsupported' });
+  });
+
+  it('does not claim a running engine after the page is left', async () => {
+    const { controller, workers } = harness();
+    await controller.checkDevice();
+    await controller.download();
+    controller.dispose();
+    expect(workers[0]?.terminated).toBe(true);
+    expect(controller.getStatus()).toMatchObject({ kind: 'stopped' });
+  });
+
+  it('deletes the downloaded files for both builds, but never while a model is loaded', async () => {
+    const { controller, sdk } = harness();
+    await controller.checkDevice();
+    await controller.download();
+    expect(await controller.deleteDownloadedModel()).toBe('busy');
+    expect(sdk.deleteModelAllInfoInCache).not.toHaveBeenCalled();
+    await controller.unload();
+    expect(await controller.deleteDownloadedModel()).toBe('deleted');
+    expect(vi.mocked(sdk.deleteModelAllInfoInCache).mock.calls.map((c) => c[0])).toEqual([
+      LOCAL_MODEL.ids.f16,
+      LOCAL_MODEL.ids.f32,
+    ]);
   });
 });
 

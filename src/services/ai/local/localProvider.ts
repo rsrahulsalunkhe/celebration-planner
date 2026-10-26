@@ -11,6 +11,7 @@ import type { LocalModelController } from './localModel.ts';
 import { LOCAL_MODEL } from './model.ts';
 import {
   LIMITS,
+  clip,
   cleanExplanation,
   cleanInvitation,
   explanationPrompt,
@@ -233,7 +234,7 @@ export class LocalAIProvider implements AssistantProvider {
       };
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') throw error;
-      const reason = error instanceof Error ? error.message : String(error);
+      const reason = clip(error instanceof Error ? error.message : String(error), 200);
       return fallback(
         `Local AI could not answer (${reason}). This is the guided planner’s answer instead.`,
         task === 'explanation' ? factsFor(request.message, ctx).basis : guided,

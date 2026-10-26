@@ -19,7 +19,7 @@ export const LIMITS = {
   explanation: { maxTokens: 320, temperature: 0.2 },
 } as const;
 
-const clip = (text: string, max: number) =>
+export const clip = (text: string, max: number) =>
   text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 const words = (list: readonly string[]) =>
   list.length === 0 ? 'none' : list.map((x) => x.replaceAll('-', ' ')).join(', ');

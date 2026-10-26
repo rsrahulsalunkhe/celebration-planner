@@ -140,6 +140,8 @@ Assistant rules:
 5. Engineering quality: strict types, lint, tests, clear structure.
 6. Constraint compliance: static only, local-first, no secrets, small repository.
 
+The review requested after stage 10 named three areas (accessibility, security and privacy, efficiency); its results are in `docs/BUILD_PROGRESS.md`. The full list of six is still not supplied.
+
 ## Repository constraints
 
 - Work only on `main`. Never create feature, development, deployment, or automated dependency-update branches.

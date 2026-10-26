@@ -102,7 +102,7 @@ describe('the budget editor', () => {
     await user.click(
       screen.getByRole('button', { name: `Edit target for ${first.name}` }),
     );
-    const input = screen.getByLabelText(`Target for ${first.name}, in rupees`);
+    const input = screen.getByLabelText(`Target for ${first.name}, in rupees (required)`);
     expect(input).toHaveFocus();
     expect(input).toHaveAttribute('inputmode', 'decimal');
     await user.clear(input);
@@ -134,7 +134,7 @@ describe('the budget editor', () => {
     await user.click(
       screen.getByRole('button', { name: `Edit target for ${first.name}` }),
     );
-    const input = screen.getByLabelText(`Target for ${first.name}, in rupees`);
+    const input = screen.getByLabelText(`Target for ${first.name}, in rupees (required)`);
     await user.clear(input);
     await user.click(screen.getByRole('button', { name: 'Save and lock' }));
     expect(screen.getByText(/Enter an amount in rupees/)).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('the budget editor', () => {
 
     // A payment above the agreed amount is refused; one inside it is recorded.
     await user.click(screen.getByRole('button', { name: 'Edit Welcome drinks' }));
-    const amount = screen.getByLabelText('Payment amount');
+    const amount = screen.getByLabelText('Payment amount (required)');
     await user.type(amount, '30000');
     await user.click(screen.getByRole('button', { name: 'Record payment' }));
     expect(

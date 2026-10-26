@@ -137,13 +137,23 @@ export const MIN_YEAR = 2000;
 export const MAX_YEAR = 2100;
 
 /** Single-line text: trimmed, required, bounded, no control characters. */
+/**
+ * Bidirectional embedding, override and isolate controls. Invisible, and able to
+ * make text display in a different order from how it is stored (a spoofed name
+ * or title), so names and notes may not contain them.
+ */
+const BIDI_CONTROLS = /[‪-‮⁦-⁩]/u;
+
 export const singleLine = (label: string, max: number) =>
   z
     .string({ error: `${label} must be text` })
     .trim()
     .min(1, `${label} is required`)
     .max(max, `${label} must be at most ${max} characters`)
-    .refine((v) => !/\p{Cc}/u.test(v), `${label} contains unsupported characters`);
+    .refine(
+      (v) => !/\p{Cc}/u.test(v) && !BIDI_CONTROLS.test(v),
+      `${label} contains unsupported characters`,
+    );
 
 /** Optional multi-line note: trimmed, bounded; newlines and tabs allowed. */
 export const multiLine = (label: string, max: number) =>
@@ -151,7 +161,10 @@ export const multiLine = (label: string, max: number) =>
     .string({ error: `${label} must be text` })
     .trim()
     .max(max, `${label} must be at most ${max} characters`)
-    .refine((v) => !/[^\P{Cc}\n\t]/u.test(v), `${label} contains unsupported characters`);
+    .refine(
+      (v) => !/[^\P{Cc}\n\t]/u.test(v) && !BIDI_CONTROLS.test(v),
+      `${label} contains unsupported characters`,
+    );
 
 export const idSchema = z
   .string()

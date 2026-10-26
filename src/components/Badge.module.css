@@ -8,7 +8,9 @@
   font-weight: 700;
   line-height: 1.5;
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  /* Long text (an owner, a model name) wraps instead of widening the page. */
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .neutral {

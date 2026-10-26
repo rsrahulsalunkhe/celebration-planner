@@ -30,8 +30,8 @@ export function Chips({
   if (options.length === 0) return null;
   return (
     <ul className={styles.chips} aria-label={label}>
-      {options.map((o) => (
-        <li key={o.message}>
+      {options.map((o, index) => (
+        <li key={`${index.toString()}-${o.message}`}>
           <button
             type="button"
             className={styles.chip}
@@ -74,7 +74,8 @@ function PreviewTables({ preview }: { preview: ChangePreview }) {
         className={styles.tableWrap}
         // Focusable so the table can be scrolled sideways with the keyboard on narrow screens.
         tabIndex={0}
-        aria-describedby={captionId}
+        role="region"
+        aria-labelledby={captionId}
       >
         <table className={styles.table}>
           <caption id={captionId}>Planner calculation, before and after</caption>
@@ -239,8 +240,8 @@ export function MessageView({
           <p>{response.generated.caution}</p>
           {response.generated.warnings.length > 0 ? (
             <ul aria-label="Checks on this text">
-              {response.generated.warnings.map((w) => (
-                <li key={w}>{w}</li>
+              {response.generated.warnings.map((w, index) => (
+                <li key={`${index.toString()}-${w}`}>{w}</li>
               ))}
             </ul>
           ) : null}
@@ -301,8 +302,9 @@ export function MessageView({
           <p>{response.intro}</p>
           {response.items.length > 0 ? (
             <ul>
-              {response.items.map((item) => (
-                <li key={item.title}>
+              {response.items.map((item, index) => (
+                // Model output: titles are not guaranteed to be unique.
+                <li key={`${index.toString()}-${item.title}`}>
                   <strong>{item.title}.</strong> {item.details}
                   {response.generated && onSaveIdea ? (
                     isIdeaSaved?.(item.title) ? (
@@ -312,7 +314,7 @@ export function MessageView({
                         {' '}
                         <Button
                           variant="ghost"
-                          aria-label={`Save “${item.title}” to Ideas`}
+                          aria-label={`Save to Ideas: ${item.title}`}
                           onClick={() => {
                             onSaveIdea(item);
                           }}

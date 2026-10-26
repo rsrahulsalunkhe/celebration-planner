@@ -331,6 +331,7 @@ function AgreedQuote({
         />
         <TextField
           name={`${prefix}-amount`}
+          required
           label={basis === 'fixed' ? 'Agreed total' : 'Agreed rate per guest'}
           value={amount}
           inputMode="decimal"

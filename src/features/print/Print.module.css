@@ -93,13 +93,15 @@
   white-space: nowrap;
 }
 
-/* Wide tables scroll on small screens; on paper they wrap instead (below). */
-.table {
-  display: block;
-  width: 100%;
+/* Wide tables scroll inside a focusable region on small screens; on paper they wrap (below). */
+.tableWrap {
   max-width: 100%;
   margin-bottom: var(--space-4);
   overflow-x: auto;
+}
+
+.table {
+  width: 100%;
   border-collapse: collapse;
   font-size: 0.9375rem;
 }
@@ -118,7 +120,8 @@
   vertical-align: top;
 }
 
-.table td {
+/* Amounts stay on one line; names and notes wrap. */
+.money td {
   white-space: nowrap;
 }
 
@@ -155,15 +158,18 @@
     break-inside: avoid;
   }
 
-  /* A real table on paper: full width, wraps text, never clipped by scrolling. */
-  .table {
-    display: table;
+  /* On paper: full width, wraps text, never clipped by scrolling. */
+  .tableWrap {
     overflow: visible;
+  }
+
+  .table {
     table-layout: auto;
     font-size: 9.5pt;
   }
 
-  .table td {
+  .table td,
+  .money td {
     white-space: normal;
     overflow-wrap: anywhere;
   }

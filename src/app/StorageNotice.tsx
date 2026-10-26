@@ -94,7 +94,7 @@ export function StorageNotice() {
       label="Clear saved data"
       icon={<Trash2 aria-hidden size={18} />}
       confirmLabel="Yes, clear saved data"
-      message="This removes everything Celebration Planner saved in this browser, including the unreadable data, and closes the events open in this tab. Download a copy first if you may need it."
+      message="This removes the plans Celebration Planner saved in this browser, including the unreadable data, and closes the events open in this tab. Download a copy first if you may need it."
       onConfirm={() => {
         const cleared = clearSavedData();
         setResult(
@@ -135,6 +135,7 @@ export function StorageNotice() {
     <div className={styles.slot}>
       {resultLine}
       <ErrorState
+        headingLevel="none"
         tone="warning"
         title={copy.headline}
         actions={

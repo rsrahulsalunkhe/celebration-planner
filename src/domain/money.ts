@@ -28,13 +28,22 @@ export function formatMoney(
   // Whole amounts read cleaner without decimals; otherwise show all of them
   // so ₹123.50 never prints as ₹123.5.
   const fractionDigits = minor % scale === 0 ? 0 : digits;
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(minor / scale);
+  const key = `${locale}|${currency}|${fractionDigits.toString()}`;
+  let format = moneyFormats.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+    moneyFormats.set(key, format);
+  }
+  return format.format(minor / scale);
 }
+
+// Formatters are reused: budget tables and the printed plan format hundreds of amounts.
+const moneyFormats = new Map<string, Intl.NumberFormat>();
 
 /** Editable text for an amount: `500000`, or `1250.50` when there are paise. */
 export function formatMoneyInput(minor: number, currency = CURRENCY): string {

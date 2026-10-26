@@ -198,67 +198,83 @@ function PrintablePlan({ event }: { event: EventRecord }) {
           <p>No budget lines yet.</p>
         ) : (
           <>
-            <table className={styles.table}>
-              <caption>By category</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Category</th>
-                  <th scope="col">Target</th>
-                  <th scope="col">Forecast</th>
-                  <th scope="col">Agreed</th>
-                  <th scope="col">Paid</th>
-                  <th scope="col">To pay</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.categories.map((c) => (
-                  <tr key={c.id}>
-                    <th scope="row">
-                      {c.name}
-                      {c.locked ? ' (locked)' : ''}
-                    </th>
-                    <td>{money(c.targetPaise)}</td>
-                    <td>{money(c.forecastPaise)}</td>
-                    <td>{money(c.committedPaise)}</td>
-                    <td>{money(c.paidPaise)}</td>
-                    <td>{money(c.outstandingPaise)}</td>
+            <div
+              className={styles.tableWrap}
+              role="region"
+              aria-label="Budget by category"
+              tabIndex={0}
+            >
+              <table className={`${styles.table} ${styles.money}`}>
+                <caption>By category</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Category</th>
+                    <th scope="col">Target</th>
+                    <th scope="col">Forecast</th>
+                    <th scope="col">Agreed</th>
+                    <th scope="col">Paid</th>
+                    <th scope="col">To pay</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th scope="row">Total</th>
-                  <td>{money(ledger.targetsPaise)}</td>
-                  <td>{money(ledger.forecastPaise)}</td>
-                  <td>{money(ledger.committedPaise)}</td>
-                  <td>{money(ledger.paidPaise)}</td>
-                  <td>{money(ledger.outstandingPaise)}</td>
-                </tr>
-              </tfoot>
-            </table>
-            <table className={styles.table}>
-              <caption>Budget lines</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Item</th>
-                  <th scope="col">Category</th>
-                  <th scope="col">Forecast</th>
-                  <th scope="col">Based on</th>
-                  <th scope="col">Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.items.map((item) => (
-                  <tr key={item.expenseId}>
-                    <th scope="row">{item.name}</th>
-                    <td>{categoryName.get(item.categoryId) ?? ''}</td>
-                    <td>{money(item.forecastPaise)}</td>
-                    <td>{item.basis === 'commitment' ? 'Agreed amount' : 'Estimate'}</td>
-                    <td>{money(item.paidPaise)}</td>
+                </thead>
+                <tbody>
+                  {ledger.categories.map((c) => (
+                    <tr key={c.id}>
+                      <th scope="row">
+                        {c.name}
+                        {c.locked ? ' (locked)' : ''}
+                      </th>
+                      <td>{money(c.targetPaise)}</td>
+                      <td>{money(c.forecastPaise)}</td>
+                      <td>{money(c.committedPaise)}</td>
+                      <td>{money(c.paidPaise)}</td>
+                      <td>{money(c.outstandingPaise)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row">Total</th>
+                    <td>{money(ledger.targetsPaise)}</td>
+                    <td>{money(ledger.forecastPaise)}</td>
+                    <td>{money(ledger.committedPaise)}</td>
+                    <td>{money(ledger.paidPaise)}</td>
+                    <td>{money(ledger.outstandingPaise)}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </tfoot>
+              </table>
+            </div>
+            <div
+              className={styles.tableWrap}
+              role="region"
+              aria-label="Budget lines"
+              tabIndex={0}
+            >
+              <table className={`${styles.table} ${styles.money}`}>
+                <caption>Budget lines</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Item</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Forecast</th>
+                    <th scope="col">Based on</th>
+                    <th scope="col">Paid</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.items.map((item) => (
+                    <tr key={item.expenseId}>
+                      <th scope="row">{item.name}</th>
+                      <td>{categoryName.get(item.categoryId) ?? ''}</td>
+                      <td>{money(item.forecastPaise)}</td>
+                      <td>
+                        {item.basis === 'commitment' ? 'Agreed amount' : 'Estimate'}
+                      </td>
+                      <td>{money(item.paidPaise)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </Section>
@@ -368,30 +384,37 @@ function PrintablePlan({ event }: { event: EventRecord }) {
         {event.runOrder.length === 0 ? (
           <p>No running order yet.</p>
         ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Time</th>
-                <th scope="col">What</th>
-                <th scope="col">Who</th>
-                <th scope="col">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...event.runOrder]
-                .sort((a, b) => a.start.localeCompare(b.start))
-                .map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {r.start}–{r.end}
-                    </td>
-                    <th scope="row">{r.title}</th>
-                    <td>{r.owner ?? ''}</td>
-                    <td>{r.notes ?? ''}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          <div
+            className={styles.tableWrap}
+            role="region"
+            aria-label="Running order"
+            tabIndex={0}
+          >
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">Time</th>
+                  <th scope="col">What</th>
+                  <th scope="col">Who</th>
+                  <th scope="col">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...event.runOrder]
+                  .sort((a, b) => a.start.localeCompare(b.start))
+                  .map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        {r.start}–{r.end}
+                      </td>
+                      <th scope="row">{r.title}</th>
+                      <td>{r.owner ?? ''}</td>
+                      <td>{r.notes ?? ''}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Section>
     </article>

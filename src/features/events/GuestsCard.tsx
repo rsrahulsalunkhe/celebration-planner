@@ -1,5 +1,5 @@
 import { Pencil, UserMinus, UserPlus } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useCalendar, usePlannerDispatch } from '@/app/state/plannerContext.ts';
 import { Button } from '@/components/Button.tsx';
 import { Card } from '@/components/Card.tsx';
@@ -170,6 +170,7 @@ export function GuestsCard({ event }: { event: EventRecord }) {
       >
         <TextField
           name="guest-name"
+          required
           label="Name or alias"
           value={values.name}
           maxLength={80}
@@ -409,6 +410,11 @@ function ForecastCount({
   const [countText, setCountText] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [preview, setPreview] = useState<GuestCountPreview | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  // A new preview is where the result and the choices are, so focus goes there.
+  useEffect(() => {
+    if (preview) previewRef.current?.focus();
+  }, [preview]);
   const stale = preview !== null && preview.baseRevision !== event.profile.revision;
 
   const run = (count: number) => {
@@ -461,6 +467,7 @@ function ForecastCount({
       >
         <TextField
           name="forecast-count"
+          required
           label="New expected guest count"
           value={countText}
           inputMode="numeric"
@@ -475,7 +482,13 @@ function ForecastCount({
         </Button>
       </form>
       {preview ? (
-        <div className={styles.preview} role="region" aria-label="Guest count preview">
+        <div
+          ref={previewRef}
+          tabIndex={-1}
+          className={styles.preview}
+          role="region"
+          aria-label="Guest count preview"
+        >
           {stale ? (
             <p className={styles.note}>
               This preview is out of date because the event changed. Preview it again.

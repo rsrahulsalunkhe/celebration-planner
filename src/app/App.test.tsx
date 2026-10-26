@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -395,9 +395,12 @@ describe('guest planning inside the event', () => {
 
     await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
     expect(within(guests).getByText('Guest name is required')).toBeInTheDocument();
-    expect(within(guests).getByLabelText('Name or alias')).toHaveFocus();
+    expect(within(guests).getByLabelText('Name or alias (required)')).toHaveFocus();
 
-    await user.type(within(guests).getByLabelText('Name or alias'), 'Rao family');
+    await user.type(
+      within(guests).getByLabelText('Name or alias (required)'),
+      'Rao family',
+    );
     await user.clear(within(guests).getByLabelText('Group size'));
     await user.type(within(guests).getByLabelText('Group size'), '0');
     await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
@@ -434,7 +437,7 @@ describe('guest planning inside the event', () => {
       ['Another group', '20'],
       ['Third group', '1'],
     ] as const) {
-      await user.type(within(guests).getByLabelText('Name or alias'), name);
+      await user.type(within(guests).getByLabelText('Name or alias (required)'), name);
       await user.clear(within(guests).getByLabelText('Group size'));
       await user.type(within(guests).getByLabelText('Group size'), size);
       await userEvent.click(within(guests).getByRole('button', { name: 'Add guest' }));
@@ -614,16 +617,16 @@ describe('ideas, printing, export and import (stage 10 completion checks)', () =
     if (!before) throw new Error('no saved event');
 
     await follow(/^Ideas/);
-    const [add] = screen.getAllByRole('button', { name: /^Add “.+” as a task$/ });
+    const [add] = screen.getAllByRole('button', { name: /^Add as a task: .+$/ });
     if (!add) throw new Error('no suggestion to add');
     const name = add.getAttribute('aria-label') ?? '';
-    const title = /“(.+)”/.exec(name)?.[1] ?? '';
+    const title = name.replace('Add as a task: ', '');
     await userEvent.click(add);
     expect(
       screen.getByText(/^Added the task .*No cost was added to the budget\.$/),
     ).toBeInTheDocument();
 
-    await click(name);
+    await click(`Task added: ${title}`);
     expect(
       screen.getByText(/is already on the timeline, so nothing was added/),
     ).toBeInTheDocument();
@@ -725,6 +728,96 @@ describe('ideas, printing, export and import (stage 10 completion checks)', () =
     expect(replaced?.events).toHaveLength(2);
     expect(replaced?.events[0]?.profile.revision).toBe(
       (original?.profile.revision ?? 0) + 1,
+    );
+  });
+});
+
+describe('keyboard focus when a control goes away', () => {
+  it('moves focus to the section heading instead of dropping it to the page', async () => {
+    renderApp();
+    await createDemo('Wedding');
+    await follow(/^Ideas/);
+    const [save] = screen.getAllByRole('button', { name: /^Save “.+”$/ });
+    if (!save) throw new Error('no suggestion to save');
+    const title = (save.getAttribute('aria-label') ?? '').slice(6, -1);
+    save.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => {
+      expect(document.activeElement).not.toBe(document.body);
+    });
+    // The suggestion's own heading, which is still on the page.
+    expect(document.activeElement?.tagName).toBe('H3');
+    expect(document.activeElement).toHaveTextContent(title);
+    expect(
+      screen.queryByRole('button', { name: `Save “${title}”` }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('takes the reader to the first invalid field when a form is sent with problems', async () => {
+    renderApp();
+    await createDemo('Birthday');
+    const guests = screen.getByRole('region', { name: 'Guests' });
+    await userEvent.clear(within(guests).getByLabelText(/New expected guest count/));
+    await userEvent.type(
+      within(guests).getByLabelText(/New expected guest count/),
+      'many',
+    );
+    await userEvent.click(within(guests).getByRole('button', { name: 'Preview' }));
+    await waitFor(() => {
+      expect(within(guests).getByLabelText(/New expected guest count/)).toHaveFocus();
+    });
+  });
+});
+
+describe('pages reached by address or Back, not by a link', () => {
+  afterEach(() => {
+    window.location.hash = '';
+  });
+
+  it('still names the tab and moves focus to the new heading', async () => {
+    const { HashRouter } = await import('react-router-dom');
+    const storage = new MemoryStorage();
+    render(
+      <HashRouter>
+        <CalendarContext value={fixedCalendar('2026-10-21')}>
+          <PlannerProvider storage={storage}>
+            <AppRoutes />
+          </PlannerProvider>
+        </CalendarContext>
+      </HashRouter>,
+    );
+    await createDemo('Wedding');
+    // Each of these history entries has no state, so the router's key is "default" for all.
+    for (const [hash, title] of [
+      ['#/budget', 'Budget'],
+      ['#/', 'Demo wedding (fictional)'],
+      ['#/timeline', 'Timeline'],
+    ] as const) {
+      window.history.pushState(null, '', hash);
+      window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      await waitFor(() => {
+        expect(document.title).toBe(`${title} · Celebration Planner`);
+      });
+      expect(h1(title)).toHaveFocus();
+    }
+  });
+});
+
+describe('the narrow-screen menu', () => {
+  it('closes when focus moves past it, so it never covers the focused control', async () => {
+    renderApp();
+    await click('Menu');
+    const menuButton = screen.getByRole('button', { name: 'Close menu' });
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+    act(() => {
+      screen.getByRole('link', { name: 'Your data' }).focus();
+    });
+    act(() => {
+      screen.getByRole('main').focus();
+    });
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
     );
   });
 });

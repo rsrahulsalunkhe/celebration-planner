@@ -110,6 +110,7 @@ export function EventForm({
 
       {errorNames.length > 0 ? (
         <ErrorState
+          headingLevel={3}
           title={`Please fix ${errorNames.length} ${errorNames.length === 1 ? 'problem' : 'problems'}`}
         >
           <ul className={styles.problems}>

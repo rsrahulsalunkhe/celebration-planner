@@ -1,5 +1,5 @@
 import { GitCompare, Plus, Star } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { ActiveEventGate } from '@/app/ActiveEventGate.tsx';
 import { usePlannerDispatch } from '@/app/state/plannerContext.ts';
 import { Badge } from '@/components/Badge.tsx';
@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/PageHeader.tsx';
 import { Select } from '@/components/Select.tsx';
 import { Stack } from '@/components/Stack.tsx';
 import { StatusMessage, type StatusTone } from '@/components/StatusMessage.tsx';
+import { useSettled } from '@/components/useSettled.ts';
 import { TextField } from '@/components/TextField.tsx';
 import { EVENT_TYPE_LABELS, VENDOR_STATUS_LABELS } from '@/data/labels.ts';
 import { SAMPLE_VENDOR_DISCLOSURE, SAMPLE_VENDORS } from '@/data/sampleVendors.ts';
@@ -103,11 +104,11 @@ function VendorWorkspace({ event }: { event: EventRecord }) {
     return true;
   };
 
-  const requirements = vendorRequirements(event, extra);
-  const matches = matchVendors(
-    event,
-    vendorCandidates(event, SAMPLE_VENDORS),
-    requirements,
+  // Matching depends on the event and the extra needs only, not on the search text.
+  const requirements = useMemo(() => vendorRequirements(event, extra), [event, extra]);
+  const matches = useMemo(
+    () => matchVendors(event, vendorCandidates(event, SAMPLE_VENDORS), requirements),
+    [event, requirements],
   );
   const visible = matches.filter(
     (m) => (kind === '' || m.candidate.kind === kind) && matchesSearch(m, search),
@@ -115,6 +116,8 @@ function VendorWorkspace({ event }: { event: EventRecord }) {
   const suitable = visible.filter((m) => m.status === 'suitable');
   const confirm = visible.filter((m) => m.status === 'needs-confirmation');
   const excluded = visible.filter((m) => m.status === 'unsuitable');
+  const counts = `${suitable.length.toString()} suitable, ${confirm.length.toString()} need confirmation, ${excluded.length.toString()} not suitable.`;
+  const settledCounts = useSettled(counts);
   const compared = compare.flatMap((key) => {
     const found = matches.find((m) => m.candidate.key === key);
     return found ? [found] : [];
@@ -235,7 +238,7 @@ function VendorWorkspace({ event }: { event: EventRecord }) {
               toggleCompare(candidate.key, candidate.name);
             }}
           >
-            {inCompare ? 'Comparing' : 'Compare'}
+            Compare
           </Button>
         </div>
       </li>
@@ -311,9 +314,10 @@ function VendorWorkspace({ event }: { event: EventRecord }) {
               onChange={setKind}
             />
           </div>
-          <p className={styles.muted} role="status" aria-live="polite">
-            {suitable.length} suitable, {confirm.length} need confirmation,{' '}
-            {excluded.length} not suitable.
+          <p className={styles.muted}>{counts}</p>
+          {/* Announced once typing pauses, not on every key. */}
+          <p className="srOnly" role="status" aria-live="polite">
+            {settledCounts}
           </p>
 
           {suitable.length > 0 ? (
@@ -329,10 +333,13 @@ function VendorWorkspace({ event }: { event: EventRecord }) {
             </section>
           ) : null}
           {excluded.length > 0 ? (
-            <details className={`${styles.group} ${styles.excluded}`}>
-              <summary>Not suitable ({excluded.length}), with reasons</summary>
-              <ul className={styles.results}>{excluded.map(renderResult)}</ul>
-            </details>
+            <section className={styles.group} aria-labelledby="excluded-heading">
+              <h3 id="excluded-heading">Not suitable</h3>
+              <details className={styles.excluded}>
+                <summary>Show {excluded.length}, with reasons</summary>
+                <ul className={styles.results}>{excluded.map(renderResult)}</ul>
+              </details>
+            </section>
           ) : null}
           {visible.length === 0 ? (
             <p className={styles.muted}>No vendors match this search.</p>

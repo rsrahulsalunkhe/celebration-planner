@@ -559,6 +559,7 @@ function PaymentsSection({
           >
             <TextField
               name="payment-amount"
+              required
               label="Payment amount"
               value={amount}
               inputMode="decimal"
