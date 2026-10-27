@@ -13,10 +13,15 @@ test('initial state: the welcome screen', async ({ page }) => {
   await expectNoAxeViolations(page, 'the welcome screen');
 });
 
-test('populated planner: every section with a plan in it', async ({ page }) => {
-  await createDemo(page, 'Wedding');
-  await startBudget(page);
-  await startTimeline(page);
+// One test per page: a full-page scan takes 1.5 to 3.5 s, so eight in one test
+// came close to the 30 s test limit and failed whenever the machine was busy.
+test.describe('populated planner: every section with a plan in it', () => {
+  test.beforeEach(async ({ page }) => {
+    await createDemo(page, 'Wedding');
+    await startBudget(page);
+    await startTimeline(page);
+  });
+
   for (const section of [
     'Overview',
     'Budget',
@@ -26,12 +31,19 @@ test('populated planner: every section with a plan in it', async ({ page }) => {
     'Ideas',
     'Your data',
   ]) {
-    await goTo(page, section);
-    await expectNoAxeViolations(page, section);
+    test(section, async ({ page }) => {
+      await goTo(page, section);
+      await expectNoAxeViolations(page, section);
+    });
   }
-  await page.goto('./#/print');
-  await expect(page.getByRole('heading', { level: 2, name: 'Checklist' })).toBeVisible();
-  await expectNoAxeViolations(page, 'the printable plan');
+
+  test('the printable plan', async ({ page }) => {
+    await page.goto('./#/print');
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Checklist' }),
+    ).toBeVisible();
+    await expectNoAxeViolations(page, 'the printable plan');
+  });
 });
 
 test('open dialog: confirming a destructive action', async ({ page }) => {

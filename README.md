@@ -226,7 +226,7 @@ Commands and results from the latest run (Windows 11, Node 24.22.1); details are
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check`        | Passed: typecheck, lint and format clean; 34 files, **570 tests**; build OK                                                        |
 | Coverage               | Core planning logic (`src/domain/planning`) **86.5% branches** (the project's own 85% goal); whole app 79.6% branches, 91.0% lines |
-| `npm run test:e2e`     | **20 Playwright tests** passed in Chromium: eight journeys, axe scans, keyboard-only use, reflow and reduced motion                |
+| `npm run test:e2e`     | **27 Playwright tests** passed in Chromium: eight journeys, axe scans, keyboard-only use, reflow and reduced motion                |
 | Clean copy with `CI=1` | `npm ci`, `check`, browser install and `test:e2e` all passed                                                                       |
 | `npm audit`            | 0 vulnerabilities                                                                                                                  |
 

@@ -218,7 +218,7 @@ How to run everything and what each suite shows: [docs/TESTING.md](TESTING.md).
   - Extra fields in an intent cannot carry operations or another event id into a change.
   - A proposal for a missing event is refused.
   - Import copies: ordinary payments get new ids; an event with nothing planned copies; invalid new ids give no copy.
-- **Playwright:** 20 tests in `e2e/`, against the production build from `vite preview` on port 4183.
+- **Playwright:** 27 tests in `e2e/` (20 when first written; the populated-planner axe scan was later split into one test per page), against the production build from `vite preview` on port 4183.
   - The eight journeys, axe in the initial, populated and open-dialog states, a keyboard-only run, reflow at 320 and 640 px, and reduced motion.
   - Every test runs on a fixed date with requests beyond `localhost` blocked.
 - **AI in tests:** the journeys swap the built WebLLM SDK and worker chunks for a stand-in (`e2e/fakes/fake-webllm.js`) with a pretend WebGPU adapter. Nothing is downloaded and no GPU is used.
@@ -306,6 +306,24 @@ How to run everything and what each suite shows: [docs/TESTING.md](TESTING.md).
 - **Testing:** a native modal `<dialog>` lets Tab move from its last button to the browser's own controls. The keyboard test checks that focus never reaches the page behind the dialog, not that it never leaves the document; that is how native modal dialogs work.
 
 ## Verification results (actually run)
+
+### Fix: browser tests timing out
+
+- **Failure:** `npm run test:e2e` failed with `populated planner: every section with a plan in it` → `frame.evaluate: Test timeout of 30000ms exceeded`. 19 tests passed; run alone, this test failed 3 of 3 times (about 34 s each).
+- **Root cause:** in the test setup, not the app.
+  - That one test ran eight full-page axe scans (1.5 to 3.4 s each, timed one by one) plus its setup inside Playwright's 30 s per-test limit.
+  - Locally, Playwright's default of 8 workers (half of 16 logical CPUs) started 8 Chromium instances at once.
+  - The failed test's trace shows its first page load took 13.9 s and creating the browser context 11.6 s, all counted against the same 30 s.
+- **Fix:**
+  - The populated-planner scan is now one test per page (7 sections plus the printable plan), sharing a `beforeEach` setup, so every scan and assertion is kept.
+  - Local workers are capped at 4 (CI stays at 2).
+  - No timeout was raised, no rule or test was removed, and the app is unchanged.
+- **Results after the fix:**
+  - `npm run test:e2e` three times in a row: 27 passed each time (38 to 47 s).
+  - With `CI=1` (2 workers): 27 passed.
+  - The accessibility file with `--repeat-each=3`: 42 passed.
+  - Typecheck, lint and format check are clean.
+  - Before the fix, `npm run check` already passed (570 tests).
 
 ### Submission preparation
 

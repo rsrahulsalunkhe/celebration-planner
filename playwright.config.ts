@@ -15,7 +15,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  workers: process.env.CI ? 2 : undefined,
+  // Each worker is a full Chromium running axe scans. Playwright's default (half
+  // the logical CPUs, 8 on a 16-thread laptop) started so many browsers at once
+  // that first page loads took over 13 s and tests hit the 30 s limit.
+  workers: process.env.CI ? 2 : 4,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: BASE_URL,
