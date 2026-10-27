@@ -10,16 +10,21 @@ Node.js 24 LTS (see `.nvmrc`).
 
 ## Scripts
 
-| Command                | What it does                            |
-| ---------------------- | --------------------------------------- |
-| `npm run dev`          | Start the Vite dev server               |
-| `npm run build`        | Type-check, then build to `dist/`       |
-| `npm run preview`      | Serve the production build locally      |
-| `npm run typecheck`    | TypeScript strict check                 |
-| `npm run lint`         | ESLint                                  |
-| `npm run format:check` | Prettier check (`npm run format` fixes) |
-| `npm test`             | Vitest in watch mode                    |
-| `npm run test:run`     | Vitest, single run                      |
+| Command                 | What it does                                                   |
+| ----------------------- | -------------------------------------------------------------- |
+| `npm run dev`           | Start the Vite dev server                                      |
+| `npm run build`         | Type-check, then build to `dist/`                              |
+| `npm run preview`       | Serve the production build locally                             |
+| `npm run typecheck`     | TypeScript strict check                                        |
+| `npm run lint`          | ESLint                                                         |
+| `npm run format:check`  | Prettier check (`npm run format` fixes)                        |
+| `npm test`              | Vitest in watch mode                                           |
+| `npm run test:run`      | Vitest, single run                                             |
+| `npm run test:coverage` | Vitest, single run with coverage (`coverage/`)                 |
+| `npm run check`         | Typecheck, lint, format check, tests with coverage, then build |
+| `npm run test:e2e`      | Playwright journeys and axe scans against the production build |
+
+Testing, browser setup and the manual AI smoke test: [docs/TESTING.md](docs/TESTING.md).
 
 ## Hosting
 

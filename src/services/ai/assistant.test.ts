@@ -315,6 +315,61 @@ describe('proposals cannot reach a different or newer event state (completion ch
   });
 });
 
+describe('malformed proposals from a provider are refused, never repaired', () => {
+  const record = planned();
+  const build = (intent: unknown) =>
+    proposalFromIntent(stateOf(record), record.profile.id, intent, CONFIG, TODAY, 'p');
+
+  it.each([
+    ['nothing at all', undefined],
+    ['a string instead of an object', 'set-budget 500000'],
+    ['an unknown change type', { type: 'delete-event' }],
+    ['a missing value', { type: 'set-budget' }],
+    ['money as text', { type: 'set-budget', budgetPaise: '₹5,00,000' }],
+    ['fractional paise', { type: 'set-budget', budgetPaise: 12.5 }],
+    ['a negative amount', { type: 'set-budget', budgetPaise: -100 }],
+    ['zero guests', { type: 'set-guest-count', guestCount: 0 }],
+    ['a fractional guest count', { type: 'set-guest-count', guestCount: 120.5 }],
+    ['a percentage over 99', { type: 'reduce-budget-percent', percent: 150 }],
+    ['an unknown setting', { type: 'set-setting', setting: 'underwater' }],
+    [
+      'a reserve over the maximum',
+      { type: 'set-reserve', reserveBasisPoints: 1_000_000 },
+    ],
+  ])('refuses %s', (_label, intent) => {
+    expect(build(intent)).toEqual({ ok: false, reason: 'That change is not supported.' });
+  });
+
+  it('ignores extra fields instead of carrying them into the change', () => {
+    const result = build({
+      type: 'set-guest-count',
+      guestCount: 150,
+      operations: [{ op: 'events/delete' }],
+      eventId: 'someone-else',
+    });
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.change.eventId).toBe(record.profile.id);
+    expect(result.change.operations.map((o) => o.op)).not.toContain('events/delete');
+    expect(result.change.operations[0]).toEqual({
+      op: 'profile/patch',
+      patch: { guestCount: 150 },
+    });
+  });
+
+  it('refuses a well-formed change for an event that does not exist', () => {
+    expect(
+      proposalFromIntent(
+        stateOf(record),
+        'missing-event',
+        { type: 'set-guest-count', guestCount: 150 },
+        CONFIG,
+        TODAY,
+        'p',
+      ),
+    ).toEqual({ ok: false, reason: 'That event no longer exists.' });
+  });
+});
+
 describe('provider contract', () => {
   it('echoes the request ids and labels its output', async () => {
     const record = planned();

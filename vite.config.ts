@@ -68,6 +68,19 @@ export default defineConfig({
     // Page tests type into many fields with user-event; under a full parallel run
     // on a laptop they can pass the 5 s default without anything being wrong.
     testTimeout: 20_000,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+      ],
+      reporter: ['text-summary', 'json-summary', 'html'],
+      // The project's own goal for the core planning logic (not an external requirement).
+      thresholds: { 'src/domain/planning/**': { branches: 85 } },
+    },
     css: { modules: { classNameStrategy: 'non-scoped' } },
   },
 });

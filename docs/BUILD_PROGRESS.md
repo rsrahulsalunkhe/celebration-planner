@@ -177,6 +177,28 @@ The working app was audited against these three areas (two read-only audits of t
   - The chat follows new replies after the conversation reaches its 40-message cap (it followed the length, which stops changing).
 - **Not changed:** each edit is still validated by the page and again by the reducer, and saving still happens on every state change (synchronous, at most about 2 MB). Both are correct and measured fast enough; changing them would touch every editor.
 
+### Testing: coverage, browser journeys and axe
+
+How to run everything and what each suite shows: [docs/TESTING.md](TESTING.md).
+
+- **Tools:** `@vitest/coverage-v8` 5.0.5 (matches Vitest), `@playwright/test` 1.64.0, `playwright-core` 1.64.0 and `@axe-core/playwright` 4.13.0, all pinned exactly.
+  - Playwright 1.64.1 and axe 4.14.0 were under two weeks old, so the previous releases were chosen.
+  - `playwright-core` is listed so that axe's peer dependency resolves to the same copy as Playwright's; it had pulled a second copy, which broke the types.
+- **Scripts:** `test:coverage`, `test:e2e` and `check` (typecheck, lint, format check, tests with coverage, `vite build`). Each suite runs once.
+- **Coverage:** a Vitest threshold keeps branch coverage of `src/domain/planning` at 85% or more, the project's own goal.
+- **New unit tests:**
+  - Malformed provider intents are refused, not repaired: 12 shapes, including money as text, fractional paise and unknown change types.
+  - Extra fields in an intent cannot carry operations or another event id into a change.
+  - A proposal for a missing event is refused.
+  - Import copies: ordinary payments get new ids; an event with nothing planned copies; invalid new ids give no copy.
+- **Playwright:** 20 tests in `e2e/`, against the production build from `vite preview` on port 4183.
+  - The eight journeys, axe in the initial, populated and open-dialog states, a keyboard-only run, reflow at 320 and 640 px, and reduced motion.
+  - Every test runs on a fixed date with requests beyond `localhost` blocked.
+- **AI in tests:** the journeys swap the built WebLLM SDK and worker chunks for a stand-in (`e2e/fakes/fake-webllm.js`) with a pretend WebGPU adapter. Nothing is downloaded and no GPU is used.
+  - These tests cover the app's handling of the adapter, not a model.
+  - A manual real-inference smoke test is written down in `docs/TESTING.md`.
+- **CI:** two jobs, `check` and `e2e` (`npx playwright install --with-deps chromium`, then `npm run test:e2e`, with the report uploaded on failure).
+
 ## Decisions
 
 - **Node 24 LTS**, `engines: >=24.15.0 <25`, `.nvmrc` is `24`. Needed by Vitest 5 and jsdom 30.
@@ -253,7 +275,39 @@ The working app was audited against these three areas (two read-only audits of t
 - **Review:** the CSP is a meta tag because the app is static and may be hosted anywhere. A meta CSP cannot set `frame-ancestors` and does not cover the model worker, whose own response headers would. Hosts that can send headers should send the same policy as a header.
 - **Review:** WebLLM appears twice in the build (main thread and worker, about 6 MB each). Neither is in the first page load. Moving the cache check into the worker would remove the main-thread copy; that was not done.
 
+- **Testing:** the e2e stand-in replaces the SDK at the network layer (Playwright routes for `assets/lib-*.js` and `assets/worker-*.js`), so the production build contains no test hooks.
+- **Testing:** a native modal `<dialog>` lets Tab move from its last button to the browser's own controls. The keyboard test checks that focus never reaches the page behind the dialog, not that it never leaves the document; that is how native modal dialogs work.
+
 ## Verification results (actually run)
+
+### Testing
+
+Windows 11, Node v24.22.1, npm 11.17.0. Playwright's Chromium is Chrome Headless Shell 156.0.8078.4.
+
+| Command                                                          | Result                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`                                                  | exit 0: typecheck, lint and format check clean; 34 files, 570 tests passed; build OK                                                                                                            |
+| Coverage (from `check`)                                          | all code: statements 88.99%, branches 79.58%, functions 88.55%, lines 90.95%. Core planning (`src/domain/planning`): branches 86.5% (1,145 of 1,324), so the 85% threshold passes               |
+| `npm run test:e2e`                                               | 20 passed (about 27 s)                                                                                                                                                                          |
+| `npx playwright test --repeat-each=2`                            | 40 passed; an earlier `--repeat-each=3` of the first 16 tests also passed (48 of 48)                                                                                                            |
+| Clean copy (only files git would track, in a new folder, `CI=1`) | `npm ci`, `npm run check`, `npx playwright install --with-deps chromium` and `npm run test:e2e` all exited 0 (570 and 16 passed; the 4 keyboard, reflow and motion tests were added afterwards) |
+| `npm audit`                                                      | 0 vulnerabilities                                                                                                                                                                               |
+
+- **Failures fixed while writing the journeys:** all were in the tests, not the app.
+  - "Your data" is outside the Main navigation.
+  - "Last list item" also matched lists nested inside a message.
+  - The cancel button is called Stop while a model writes.
+  - Focus is already on the heading after navigating, so the skip-link check needs a fresh load.
+  - At narrow widths the sidebar links are inside the closed menu.
+- **Mutation check:** with the event switch removed from journey 8, the reply appears and the test fails.
+- **Coverage gaps:** branch coverage is lower in interface code that the browser journeys exercise but Vitest does not count, for example the printable plan (32%) and Ideas (53%).
+- **Not verified:**
+  - Linux and macOS, where the CI workflow has not run yet because there is no remote;
+  - Firefox and WebKit;
+  - a screen reader;
+  - real browser zoom;
+  - the operating system's reduced-motion setting.
+  - The real-inference smoke test was last run on 2026-10-26 and not repeated here (no local AI code changed).
 
 ### Review
 
@@ -467,6 +521,6 @@ No remote is configured, so nothing has been pushed. Add one with `git remote ad
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
 3. **Print and accessibility checks:** look at a real print preview and saved PDF in Chromium and Firefox; run axe (bundled locally, not from a CDN) and a real screen reader on every page; check real keyboard Tab order in a focused window.
 4. **Local model follow-ups:** run "Delete downloaded model" against the real cache, move the cache check into the worker so WebLLM is not bundled twice, and check a discrete GPU and phones. (The guided planner is done in stage 8, local AI in stage 9.)
-5. **Repeatable browser checks:** turn the scratch Edge script into a maintained e2e script and CI job, and test Firefox and a real phone.
+5. **Browser coverage:** run the CI workflow once a remote exists, and add Firefox and WebKit projects (with their own `npx playwright install` lines) and a real phone. (Chromium journeys and axe scans are done.)
 6. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.
 7. **Bundle size:** split the planning configuration or routes so the main chunk drops below Vite's 500 kB warning.

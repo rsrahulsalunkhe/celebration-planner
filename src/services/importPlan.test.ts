@@ -186,6 +186,53 @@ describe('export and import round trip (completion check)', () => {
   });
 });
 
+describe('copies in edge cases', () => {
+  it('gives ordinary payments new ids and keeps the vendor deposit link', () => {
+    const record = fullEvent();
+    const linked = record.expenses.find((e) => e.vendorId !== undefined);
+    if (!linked) throw new Error('fixture');
+    const withExtra = apply(record, [
+      {
+        op: 'expenses/upsert',
+        item: {
+          ...linked,
+          payments: [
+            ...linked.payments,
+            { id: 'p-extra', amountPaise: 100_000, date: TODAY },
+          ],
+        },
+      },
+    ]);
+    let n = 0;
+    const copy = copyWithNewIds(
+      withExtra,
+      'event-copy',
+      (prefix) => `${prefix}-c${(n += 1)}`,
+    );
+    const copied = copy?.expenses.find((e) => e.vendorId !== undefined);
+    expect(copied?.payments.map((p) => p.id)).toEqual([
+      `${copied?.vendorId ?? ''}~deposit`,
+      expect.stringMatching(/^payment-c\d+$/),
+    ]);
+    expect(copied?.payments.map((p) => p.amountPaise)).toEqual(
+      withExtra.expenses
+        .find((e) => e.id === linked.id)
+        ?.payments.map((p) => p.amountPaise),
+    );
+  });
+
+  it('copies an event with nothing planned yet', () => {
+    const bare = presetEvent('birthday');
+    const copy = copyWithNewIds(bare, 'event-bare', (prefix) => `${prefix}-1`);
+    expect(copy?.profile).toMatchObject({ id: 'event-bare', revision: 0 });
+    expect(copy?.tasks).toEqual([]);
+  });
+
+  it('returns nothing, rather than a broken copy, when the new ids are not valid', () => {
+    expect(copyWithNewIds(fullEvent(), 'event copy with spaces', (p) => p)).toBeNull();
+  });
+});
+
 describe('invalid files are refused without changing anything (completion check)', () => {
   const good = () =>
     JSON.parse(exportOf(fullEvent()).content) as Record<string, unknown> & {
