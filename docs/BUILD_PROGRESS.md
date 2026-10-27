@@ -177,6 +177,33 @@ The working app was audited against these three areas (two read-only audits of t
   - The chat follows new replies after the conversation reaches its 40-message cap (it followed the length, which stops changing).
 - **Not changed:** each edit is still validated by the page and again by the reducer, and saving still happens on every state change (synchronous, at most about 2 MB). Both are correct and measured fast enough; changing them would touch every editor.
 
+### Submission preparation
+
+- **README:** rewritten to describe the actual implementation. It covers:
+  - Challenge 5, the personas and the main journey.
+  - Features, and context-to-decision examples with figures from the engine.
+  - Setup and commands, architecture, and the money, date and regeneration rules.
+  - The Guided planner and Local AI with model details, hardware needs and the manual verification status.
+  - Fictional data, privacy and limits, export and import, test evidence, and a walkthrough of the three demonstrations.
+  - It claims no score, live vendor availability, verified prices, universal browser support or accessibility certification.
+- **CI** (`.github/workflows/ci.yml`):
+  - Triggers: pushes to `main` and manual runs (no pull request or branch triggers).
+  - Permissions: `contents: read` only.
+  - Node from `.nvmrc`; a `check` job (`npm ci`, `npm run check`) and an `e2e` job (Chromium with `--with-deps`, `npm run test:e2e` with `CI=true`).
+  - Failures are reported as annotations and in the job summary, with the Playwright report uploaded.
+  - No model is downloaded: the browser tests block every request beyond localhost.
+- **Optional Pages demo** (`.github/workflows/pages.yml`):
+  - Started by hand only.
+  - Builds with `BASE_PATH=/<repository>/` after the full check, then deploys through `upload-pages-artifact` and `deploy-pages`, with no `gh-pages` branch.
+  - Not run.
+- **`npm run submission:check`** (`scripts/submission-check.mjs`): a read-only preflight covering branches, visibility, a clean and pushed tree, unwanted tracked files and secret-like strings, tracked bytes, history size, GitHub's reported size and the margin below 10,000,000 bytes.
+  - `--clean-clone` reproduces install, checks, browser tests and build from a fresh full clone.
+  - Checks that cannot be made report UNVERIFIED, never PASS.
+  - It is kept out of CI, whose checkout may be shallow or detached.
+  - Manual checks are in [docs/SUBMISSION.md](SUBMISSION.md).
+- **`.gitignore`:** now covers `.claude/` (local assistant settings such as the preview server config), so a clean working tree can be checked.
+- **Project brief:** stale lines corrected: light theme only, no "coming soon" sections, and Playwright and axe in the test stack.
+
 ### Testing: coverage, browser journeys and axe
 
 How to run everything and what each suite shows: [docs/TESTING.md](TESTING.md).
@@ -279,6 +306,21 @@ How to run everything and what each suite shows: [docs/TESTING.md](TESTING.md).
 - **Testing:** a native modal `<dialog>` lets Tab move from its last button to the browser's own controls. The keyboard test checks that focus never reaches the page behind the dialog, not that it never leaves the document; that is how native modal dialogs work.
 
 ## Verification results (actually run)
+
+### Submission preparation
+
+`npm run submission:check -- --clean-clone` on Windows 11, Node 24.22.1, 2026-10-27, before this change was committed and with no remote:
+
+- **PASS:**
+  - only `main` locally;
+  - 212 tracked files, none unwanted and no secret-like strings;
+  - tracked bytes 1,531,408;
+  - history of 12 commits, packed 551,936 bytes in a fresh full clone, 3,688,559 bytes uncompressed;
+  - clean clone: `npm ci` 13 s, `check` 99 s, browser install 1 s, `test:e2e` 29 s, `build` 7 s, all passing.
+- **UNVERIFIED** (no remote): remote branches, public visibility, push state, GitHub's reported size and therefore the overall margin.
+- **FAIL:** the working tree, because this change was still uncommitted.
+- **Remote paths:** exercised in a throwaway clone pointed at the public `mlc-ai/web-llm` repository. Its extra branches, unknown remote commits and 69 MB size were reported as FAIL and its visibility as PASS, so the GitHub API and `ls-remote` paths work.
+- **Not run:** the CI workflow on GitHub and the Pages workflow, since there is no remote.
 
 ### Testing
 
@@ -513,13 +555,13 @@ Not verified:
 
 ## Remote and push
 
-No remote is configured, so nothing has been pushed. Add one with `git remote add origin <url>` and push `main`.
+No remote is configured, so nothing has been pushed and the GitHub checks are unverified. Create the public repository, run `git remote add origin <url>` and `git push -u origin main`, then `npm run submission:check` (see `docs/SUBMISSION.md`).
 
 ## Remaining work
 
 1. **Show the plan:** generated tasks, ideas and recommendations with reasons on Overview, with an apply button, using the existing engine. (The budget part is done in stage 5.)
 2. **Constraint-change flow on the Overview:** route event edits (guests, budget, date, needs) through `proposeChange` and `previewChanges` with accept or reject, and rebalance unlocked targets there too. (Budget, guest and reserve what-ifs are done on the Budget page.)
-3. **Print and accessibility checks:** look at a real print preview and saved PDF in Chromium and Firefox; run axe (bundled locally, not from a CDN) and a real screen reader on every page; check real keyboard Tab order in a focused window.
+3. **Print and accessibility checks:** look at a real print preview and saved PDF in Chromium and Firefox; test with a real screen reader and real browser zoom. (axe scans, keyboard-only, reflow and reduced-motion checks run in Playwright.)
 4. **Local model follow-ups:** run "Delete downloaded model" against the real cache, move the cache check into the worker so WebLLM is not bundled twice, and check a discrete GPU and phones. (The guided planner is done in stage 8, local AI in stage 9.)
 5. **Browser coverage:** run the CI workflow once a remote exists, and add Firefox and WebKit projects (with their own `npx playwright install` lines) and a real phone. (Chromium journeys and axe scans are done.)
 6. **Replace the provisional evaluation criteria** in `docs/PROJECT_BRIEF.md` once the real six are supplied.

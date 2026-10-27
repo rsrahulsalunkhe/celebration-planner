@@ -38,6 +38,9 @@ models/
 *.pem
 *.key
 
+# Local assistant and editor settings (for example the preview server config)
+.claude/
+
 # Logs and OS/editor files
 *.log
 npm-debug.log*

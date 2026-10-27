@@ -19,7 +19,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && vite build"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && vite build",
+    "submission:check": "node scripts/submission-check.mjs"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "0.2.85",

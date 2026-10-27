@@ -1,17 +1,24 @@
 name: CI
 
+# Every push to main, and on demand from the Actions tab. The project keeps a
+# single branch, so there are no pull request or branch triggers.
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
+    name: Typecheck, lint, format, unit tests with coverage, build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,11 +26,19 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Typecheck, lint, format check, unit and component tests with coverage, build.
       - run: npm run check
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "::error title=check failed::npm run check failed. Run it locally to reproduce; the log names the failing step."
+          echo "### npm run check failed" >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
+    name: Browser journeys (Chromium, stand-in AI, no model download)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,8 +48,14 @@ jobs:
       - run: npm ci
       # Only Chromium is configured; --with-deps adds its Linux system libraries.
       - run: npx playwright install --with-deps chromium
-      # Builds and serves the production build itself; no model or GPU is used.
+      # Builds and serves the production build itself. The tests block every
+      # request beyond localhost, so no model or SDK is ever downloaded.
       - run: npm run test:e2e
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "::error title=e2e failed::Browser tests failed. The playwright-report artifact has traces and screenshots."
+          echo "### Browser tests failed: see the playwright-report artifact" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
