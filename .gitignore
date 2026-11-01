@@ -11,6 +11,7 @@ traces/
 *.tsbuildinfo
 
 # Caches
+.firebase/
 .cache/
 .eslintcache
 .vite/

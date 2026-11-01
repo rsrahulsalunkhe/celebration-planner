@@ -1,5 +1,26 @@
 # Build progress
 
+## Quality follow-up: 1 November 2026
+
+- Split vendor creation and comparison out of `VendorsPage.tsx`; keep the main page responsible for matching, filtering and event changes. Shared presentation labels live in `vendorPresentation.ts`.
+- Extracted pure vendor-form validation into `vendorForm.ts`. Invalid contact and service-area text previously rejected submission without an associated error; both fields now show their schema errors, receive focus on invalid submission, and clear their errors when corrected. Two regression cases failed against the previous implementation.
+- Replaced the vendor form's opening timer with focus management after rendering. Saving and cancelling return focus to the Add vendor button; opening focuses Vendor name.
+- Combined identical event creation/import reducer branches so their validation, duplicate checks and capacity limit cannot drift apart.
+- Added 12 unit/component regression cases and a Chromium journey covering the invalid-contact state, axe scan, correction, save and cancellation. No real AI model is downloaded by the tests.
+- Ignore Firebase's generated cache in Git and exclude installed local agent skills/cache files from application lint/format checks. Formatted the existing local Firebase configuration without changing its settings.
+- Replaced the provisional evaluation criteria with the six labels supplied in the submission form. Detailed evaluator feedback and weighting remain unavailable; these changes do not establish a new score.
+
+Validation on Windows with Node 24.22.1:
+
+| Check                                 | Result                                                                                               |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `npm run check`                       | Passed: typecheck, lint, formatting, 35 test files / 582 tests, coverage threshold, production build |
+| Whole-app coverage                    | 91.06% lines; 79.85% branches                                                                        |
+| `npx playwright test --reporter=list` | 28 passed in Chromium, including vendor-form validation/focus and axe scans                          |
+| `git diff --check`                    | Passed                                                                                               |
+
+The first browser run printed successful results for all 28 tests but stalled during shutdown in this Windows environment. A second run using the existing preview server and list reporter exited successfully. Vite still reports the existing large-chunk warning. No new screen-reader, Firefox, Safari, physical-device or real-model verification was performed.
+
 ## Completed stages
 
 ### Stage 1: Scaffold

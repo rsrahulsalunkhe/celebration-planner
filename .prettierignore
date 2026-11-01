@@ -6,3 +6,6 @@ playwright-report
 test-results
 traces
 package-lock.json
+.firebase
+.agents
+skills-lock.json

@@ -8,6 +8,8 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig([
   globalIgnores([
+    '.firebase',
+    '.agents',
     'dist',
     'coverage',
     '.vitest',

@@ -131,16 +131,14 @@ Assistant rules:
 
 ## The six evaluation criteria
 
-**Not supplied.** The original brief refers to "the six evaluation criteria" but does not list them. The list below is a **provisional placeholder** derived from the essential journey, so work can proceed. It must be replaced with the real criteria once provided.
+The submission form supplied on 1 November 2026 lists these criteria. The descriptions below map them to the implementation; the evaluator's detailed rubric and weighting were not supplied.
 
-1. Journey completeness: every step of the essential journey works end to end.
-2. Explainability: each plan element shows why it was chosen.
-3. Consequence visibility: changing a constraint shows what changed and why.
-4. Usability and accessibility: keyboard, screen reader, responsive.
-5. Engineering quality: strict types, lint, tests, clear structure.
-6. Constraint compliance: static only, local-first, no secrets, small repository.
-
-The review requested after stage 10 named three areas (accessibility, security and privacy, efficiency); its results are in `docs/BUILD_PROGRESS.md`. The full list of six is still not supplied.
+1. **Code Quality:** strict TypeScript, validated domain operations, focused UI components and pure form parsers, lint and formatting checks.
+2. **Security:** bounded and schema-validated imports, a production Content Security Policy, no embedded secrets, and explicit local-data limitations.
+3. **Efficiency:** deterministic planning functions, bounded collections, memoized matching and optional AI loaded only on demand.
+4. **Testing:** unit and component tests, a coverage gate for core planning, and browser journeys against the production build.
+5. **Accessibility:** labelled native controls, associated validation errors, keyboard focus management, responsive layouts, and automated axe scans. Manual assistive-technology coverage remains incomplete.
+6. **Problem Statement Alignment:** wedding, birthday and community event planning, explained budgets and timelines, vendor tracking, ideas, and previews of constraint changes.
 
 ## Repository constraints
 

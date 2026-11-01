@@ -61,6 +61,34 @@ test('open dialog: confirming a destructive action', async ({ page }) => {
 });
 
 test.describe('keyboard, reflow and motion in a real browser', () => {
+  test('vendor form errors are labelled and closing the form restores focus', async ({
+    page,
+  }) => {
+    await createDemo(page, 'Wedding');
+    await goTo(page, 'Vendors');
+    const add = page.getByRole('button', { name: 'Add vendor', exact: true });
+    await add.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByLabel('Vendor name (required)')).toBeFocused();
+    await page.getByLabel('Vendor name (required)').fill('Local hall');
+    await page.getByLabel('Category (required)', { exact: true }).selectOption('venue');
+    const contact = page.getByLabel('Contact (optional, your note)', { exact: true });
+    await contact.fill('Invalid\u0007text');
+    await page.getByRole('button', { name: 'Save vendor' }).click();
+    await expect(contact).toBeFocused();
+    await expect(contact).toHaveAttribute('aria-invalid', 'true');
+    await expectNoAxeViolations(page, 'vendor form with a contact validation error');
+    await contact.fill('Office');
+    await page.getByRole('button', { name: 'Save vendor' }).click();
+    await expect(add).toBeFocused();
+    await page.keyboard.press('Enter');
+    await page
+      .getByRole('form', { name: 'Add a vendor' })
+      .getByRole('button', { name: 'Cancel' })
+      .click();
+    await expect(add).toBeFocused();
+  });
+
   test('works with the keyboard alone: skip link, navigation, a form and a dialog', async ({
     page,
   }) => {

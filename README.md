@@ -220,15 +220,15 @@ Automated tests use a stand-in for the SDK and never download or run a model ([d
 
 ## Tests and verification evidence
 
-Commands and results from the latest run (Windows 11, Node 24.22.1); details are in [docs/BUILD_PROGRESS.md](docs/BUILD_PROGRESS.md):
+Latest local checks (1 November 2026, Windows 11, Node 24.22.1), with earlier clean-copy and dependency-audit evidence noted separately. Details are in [docs/BUILD_PROGRESS.md](docs/BUILD_PROGRESS.md):
 
-| Command                | Result                                                                                                                             |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check`        | Passed: typecheck, lint and format clean; 34 files, **570 tests**; build OK                                                        |
-| Coverage               | Core planning logic (`src/domain/planning`) **86.5% branches** (the project's own 85% goal); whole app 79.6% branches, 91.0% lines |
-| `npm run test:e2e`     | **27 Playwright tests** passed in Chromium: eight journeys, axe scans, keyboard-only use, reflow and reduced motion                |
-| Clean copy with `CI=1` | `npm ci`, `check`, browser install and `test:e2e` all passed                                                                       |
-| `npm audit`            | 0 vulnerabilities                                                                                                                  |
+| Command                               | Result                                                                                               |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `npm run check`                       | Passed: typecheck, lint and format clean; 35 files, **582 tests**; build OK                          |
+| Coverage                              | Core planning passes the 85% branch threshold; whole app 79.85% branches, 91.06% lines               |
+| `npx playwright test --reporter=list` | **28 Playwright tests** passed in Chromium, including vendor validation errors and focus restoration |
+| Earlier clean copy with `CI=1`        | `npm ci`, `check`, browser install and `test:e2e` all passed; not repeated for the November changes  |
+| Earlier `npm audit`                   | 0 vulnerabilities at that run; not rechecked for the November changes                                |
 
 **Accessibility:** the aim is WCAG 2.2 AA.
 
@@ -263,4 +263,4 @@ Each starts from **New event → Create demo**. The demo dates are set from toda
 - One currency (INR) and one language (English), with `en-IN` formatting.
 - Data stays in one browser, unencrypted, with no sync.
 - Local AI needs WebGPU and a large download, and writes drafts that can be wrong.
-- The six evaluation criteria and the submission guide were not supplied with the brief, so neither is reflected here beyond what is stated.
+- The six submission criteria are documented in `docs/PROJECT_BRIEF.md`; the evaluator's detailed rubric and weighting are not available.

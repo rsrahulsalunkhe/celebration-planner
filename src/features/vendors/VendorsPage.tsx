@@ -1,12 +1,12 @@
-import { GitCompare, Plus, Star } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { GitCompare, Star } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { ActiveEventGate } from '@/app/ActiveEventGate.tsx';
 import { usePlannerDispatch } from '@/app/state/plannerContext.ts';
 import { Badge } from '@/components/Badge.tsx';
 import { Button } from '@/components/Button.tsx';
 import { Card } from '@/components/Card.tsx';
 import { CheckboxGroup } from '@/components/CheckboxGroup.tsx';
-import { toOptions, type Option } from '@/components/options.ts';
+import type { Option } from '@/components/options.ts';
 import { PageHeader } from '@/components/PageHeader.tsx';
 import { Select } from '@/components/Select.tsx';
 import { Stack } from '@/components/Stack.tsx';
@@ -29,24 +29,22 @@ import {
   type VendorMatch,
 } from '@/domain/planning/vendors.ts';
 import { CAPABILITIES, LIMITS } from '@/domain/primitives.ts';
-import { vendorSchema } from '@/domain/schemas.ts';
 import type {
   Capability,
   ChangeOperation,
   EventRecord,
-  Vendor,
   VendorKind,
 } from '@/domain/types.ts';
 import styles from './Vendors.module.css';
 import { VendorRecord } from './VendorRecord.tsx';
+import { AddVendorCard } from './AddVendorCard.tsx';
+import { CompareCard } from './CompareCard.tsx';
+import { KIND_OPTIONS, MAX_COMPARE, OUTCOME_WORDS } from './vendorPresentation.ts';
 
-const MAX_COMPARE = 3;
-const KIND_OPTIONS = toOptions(VENDOR_KIND_LABELS);
 const CAPABILITY_OPTIONS: Option<Capability>[] = CAPABILITIES.map((value) => ({
   value,
   label: CAPABILITY_LABELS[value],
 }));
-const OUTCOME_WORDS = { met: 'Met', unknown: 'To confirm', failed: 'Not met' } as const;
 
 export function VendorsPage() {
   return (
@@ -381,311 +379,5 @@ function VendorWorkspace({ event }: { event: EventRecord }) {
         <AddVendorCard event={event} commit={commit} />
       </Stack>
     </>
-  );
-}
-
-function CompareCard({
-  event,
-  matches,
-  onRemove,
-}: {
-  event: EventRecord;
-  matches: readonly VendorMatch[];
-  onRemove: (key: string, name: string) => void;
-}) {
-  const capabilities = [
-    ...new Set(
-      matches.flatMap((m) =>
-        m.checks.flatMap((c) => (c.capability ? [c.capability] : [])),
-      ),
-    ),
-  ];
-  const cell = (m: VendorMatch, criterion: string, capability?: Capability) => {
-    const check = m.checks.find(
-      (c) =>
-        c.criterion === criterion &&
-        (capability === undefined || c.capability === capability),
-    );
-    return check ? `${OUTCOME_WORDS[check.outcome]}: ${check.text}` : 'Not relevant';
-  };
-  return (
-    <Card
-      title="Compare"
-      description={`Up to ${MAX_COMPARE} vendors side by side. Sample prices are illustrative.`}
-    >
-      <div
-        className={styles.tableWrap}
-        role="region"
-        aria-labelledby="compare-caption"
-        tabIndex={0}
-      >
-        <table className={styles.table}>
-          <caption id="compare-caption">
-            Comparison for {event.profile.guestCount} guests
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Criterion</th>
-              {matches.map((m) => (
-                <th key={m.candidate.key} scope="col">
-                  {m.candidate.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Source</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>
-                  {m.candidate.sample ? 'Sample data (fictional)' : 'Your record'}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <th scope="row">Category</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>{VENDOR_KIND_LABELS[m.candidate.kind]}</td>
-              ))}
-            </tr>
-            <tr>
-              <th scope="row">Match</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>{m.summary}</td>
-              ))}
-            </tr>
-            <tr>
-              <th scope="row">Service area</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>{cell(m, 'service-area')}</td>
-              ))}
-            </tr>
-            <tr>
-              <th scope="row">Capacity</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>{cell(m, 'capacity')}</td>
-              ))}
-            </tr>
-            <tr>
-              <th scope="row">Price</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>
-                  {m.candidate.sample
-                    ? `${priceText(m.candidate.sample.price)} (illustrative)`
-                    : m.estimatePaise !== null
-                      ? `${formatMoney(m.estimatePaise)} (your quote)`
-                      : 'No quote yet'}
-                </td>
-              ))}
-            </tr>
-            {capabilities.map((c) => (
-              <tr key={c}>
-                <th scope="row">{CAPABILITY_LABELS[c]}</th>
-                {matches.map((m) => (
-                  <td key={m.candidate.key}>{cell(m, 'capability', c)}</td>
-                ))}
-              </tr>
-            ))}
-            <tr>
-              <th scope="row">Your status</th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>
-                  {m.candidate.vendor
-                    ? VENDOR_STATUS_LABELS[m.candidate.vendor.status]
-                    : 'Not on your list'}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <th scope="row">
-                <span className="srOnly">Remove</span>
-              </th>
-              {matches.map((m) => (
-                <td key={m.candidate.key}>
-                  <Button
-                    variant="ghost"
-                    aria-label={`Remove ${m.candidate.name} from the comparison`}
-                    onClick={() => {
-                      onRemove(m.candidate.key, m.candidate.name);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function AddVendorCard({
-  event,
-  commit,
-}: {
-  event: EventRecord;
-  commit: (operations: readonly ChangeOperation[], success: string) => boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [kind, setKind] = useState<VendorKind | ''>('');
-  const [contact, setContact] = useState('');
-  const [serviceArea, setServiceArea] = useState('');
-  const [capacity, setCapacity] = useState('');
-  const [errors, setErrors] = useState<{
-    name?: string;
-    kind?: string;
-    capacity?: string;
-  }>({});
-
-  const submit = (submitEvent: FormEvent) => {
-    submitEvent.preventDefault();
-    const next: typeof errors = {};
-    if (!kind) next.kind = 'Choose a category';
-    const cap = capacity.trim();
-    if (cap !== '' && !/^\d+$/.test(cap))
-      next.capacity = 'Enter a whole number of guests, like 150';
-    const candidate = {
-      id: createId('vendor'),
-      name,
-      kind: kind || 'other',
-      status: 'shortlisted' as const,
-      quotePaise: null,
-      ...(contact.trim() ? { contact: contact.trim() } : {}),
-      ...(serviceArea.trim() ? { serviceArea: serviceArea.trim() } : {}),
-      ...(cap && /^\d+$/.test(cap) ? { capacityMax: Number(cap) } : {}),
-    };
-    const parsed = vendorSchema.safeParse(candidate);
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        if (issue.path[0] === 'name') next.name ??= issue.message;
-        if (issue.path[0] === 'capacityMax') next.capacity ??= issue.message;
-      }
-    }
-    if (!parsed.success || Object.keys(next).length > 0) {
-      setErrors(next);
-      const first = next.name
-        ? 'new-vendor-name'
-        : next.kind
-          ? 'new-vendor-kind'
-          : 'new-vendor-capacity';
-      document.getElementById(`field-${first}`)?.focus();
-      return;
-    }
-    const vendor: Vendor = parsed.data;
-    if (
-      commit(
-        [{ op: 'vendors/upsert', item: vendor }],
-        `Added ${vendor.name} to your vendors.`,
-      )
-    ) {
-      setOpen(false);
-      setName('');
-      setKind('');
-      setContact('');
-      setServiceArea('');
-      setCapacity('');
-      setErrors({});
-    }
-  };
-
-  return (
-    <Card
-      title="Add a vendor you found"
-      description="Your own record. Anything you leave blank is treated as not known yet."
-      actions={
-        open ? null : (
-          <Button
-            icon={<Plus aria-hidden size={18} />}
-            disabled={event.vendors.length >= LIMITS.vendors}
-            onClick={() => {
-              setOpen(true);
-              setTimeout(
-                () => document.getElementById('field-new-vendor-name')?.focus(),
-                0,
-              );
-            }}
-          >
-            Add vendor
-          </Button>
-        )
-      }
-    >
-      {open ? (
-        <form
-          className={styles.form}
-          onSubmit={submit}
-          noValidate
-          aria-label="Add a vendor"
-        >
-          <TextField
-            name="new-vendor-name"
-            label="Vendor name"
-            value={name}
-            maxLength={100}
-            required
-            autoComplete="off"
-            error={errors.name}
-            onChange={(v) => {
-              setName(v);
-              setErrors((e) => ({ ...e, name: undefined }));
-            }}
-          />
-          <Select
-            name="new-vendor-kind"
-            label="Category"
-            value={kind}
-            options={KIND_OPTIONS}
-            placeholder="Choose a category"
-            required
-            error={errors.kind}
-            onChange={(v) => {
-              setKind(v);
-              setErrors((e) => ({ ...e, kind: undefined }));
-            }}
-          />
-          <TextField
-            name="new-vendor-area"
-            label="Service area (optional)"
-            value={serviceArea}
-            maxLength={100}
-            autoComplete="off"
-            onChange={setServiceArea}
-          />
-          <TextField
-            name="new-vendor-capacity"
-            label="Most guests they can serve (optional)"
-            value={capacity}
-            inputMode="numeric"
-            error={errors.capacity}
-            onChange={(v) => {
-              setCapacity(v);
-              setErrors((e) => ({ ...e, capacity: undefined }));
-            }}
-          />
-          <TextField
-            name="new-vendor-contact"
-            label="Contact (optional, your note)"
-            value={contact}
-            maxLength={120}
-            autoComplete="off"
-            onChange={setContact}
-          />
-          <div className={`${styles.buttons} ${styles.wide}`}>
-            <Button type="submit">Save vendor</Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      ) : null}
-    </Card>
   );
 }

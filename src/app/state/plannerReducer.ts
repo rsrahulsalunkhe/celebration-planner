@@ -34,10 +34,11 @@ export function plannerReducer(
   action: PlannerAction,
 ): SavedAppState {
   switch (action.type) {
-    case 'event/create': {
+    case 'event/create':
+    case 'event/import': {
       const parsed = eventRecordSchema.safeParse(action.record);
-      const exists = state.events.some((e) => e.profile.id === action.record.profile.id);
-      if (!parsed.success || exists || state.events.length >= LIMITS.events) return state;
+      if (!parsed.success || state.events.length >= LIMITS.events) return state;
+      if (state.events.some((e) => e.profile.id === parsed.data.profile.id)) return state;
       return {
         activeEventId: parsed.data.profile.id,
         events: [...state.events, parsed.data],
@@ -71,15 +72,6 @@ export function plannerReducer(
       return {
         ...state,
         events: state.events.map((e) => (e.profile.id === action.eventId ? next : e)),
-      };
-    }
-    case 'event/import': {
-      const parsed = eventRecordSchema.safeParse(action.record);
-      const exists = state.events.some((e) => e.profile.id === action.record.profile.id);
-      if (!parsed.success || exists || state.events.length >= LIMITS.events) return state;
-      return {
-        activeEventId: parsed.data.profile.id,
-        events: [...state.events, parsed.data],
       };
     }
     case 'event/replace': {

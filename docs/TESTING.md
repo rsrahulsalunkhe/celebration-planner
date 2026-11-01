@@ -33,7 +33,9 @@ npm run test:e2e
 
 ## Unit and component tests (Vitest, React Testing Library, user-event)
 
-34 files in `src/**/*.test.ts(x)`, run in jsdom. Component tests find elements by role and label, as assistive technology would.
+Tests in `src/**/*.test.ts(x)` run in jsdom. Component tests find elements by role and label, as assistive technology would.
+
+Vendor form regressions cover invalid optional contact/service-area text, capacity boundaries, error descriptions and focus after save/cancel. `vendorForm.test.ts` checks the pure validation independently; `VendorsPage.test.tsx` checks persistence and recovery after corrections; `accessibility.spec.ts` exercises the error state and focus restoration in Chromium with an axe scan.
 
 | Area                                                    | Where                                                                                                   |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |

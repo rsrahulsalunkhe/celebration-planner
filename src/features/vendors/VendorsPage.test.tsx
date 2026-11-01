@@ -150,6 +150,42 @@ describe('vendor matching on the page', () => {
 });
 
 describe('your vendors', () => {
+  it.each(['Contact (optional, your note)', 'Service area (optional)'])(
+    'explains invalid %s and focuses the field without saving',
+    async (label) => {
+      const storage = renderAt('/vendors', presetEvent('wedding'));
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Add vendor' }));
+      await user.type(screen.getByLabelText(/^Vendor name/), 'Local hall');
+      await user.selectOptions(screen.getByLabelText('Category (required)'), 'venue');
+      const field = screen.getByLabelText(label);
+      fireEvent.change(field, { target: { value: 'Invalid\u0007text' } });
+      await user.click(screen.getByRole('button', { name: 'Save vendor' }));
+      expect(field).toHaveAttribute('aria-invalid', 'true');
+      expect(field).toHaveAccessibleDescription();
+      expect(field).toHaveFocus();
+      expect(saved(storage).vendors).toHaveLength(0);
+      await user.clear(field);
+      await user.type(field, 'Pune');
+      expect(field).not.toHaveAttribute('aria-invalid');
+      await user.click(screen.getByRole('button', { name: 'Save vendor' }));
+      expect(saved(storage).vendors).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Add vendor' })).toHaveFocus();
+    },
+  );
+
+  it('returns keyboard focus to Add vendor when the form is cancelled', async () => {
+    renderAt('/vendors', presetEvent('wedding'));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Add vendor' }));
+    await user.click(
+      within(screen.getByRole('form', { name: 'Add a vendor' })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    expect(screen.getByRole('button', { name: 'Add vendor' })).toHaveFocus();
+  });
+
   it('shortlists a sample once, and adds your own vendor as needing confirmation', async () => {
     const storage = renderAt('/vendors', presetEvent('wedding'));
     const user = userEvent.setup();
